@@ -1,0 +1,60 @@
+     server:
+       sources:
+       - path: "D:/Projects/department-test"
+         name: "workspace"
+         config:
+            defaultEnabled: true
+            defaultUserScope: "/"
+            denyByDefault: true
+            defaultPermissions:
+             view: true
+             download: true
+             modify: false
+             create: false
+             delete: false
+       cacheDir: "tmp"
+       database:
+         path: "filebrowser.sqlite"
+       logging:
+          - levels: "debug|info|warning|error"
+
+     http:
+        port: 8085
+        listen: "127.0.0.1"
+        baseURL: "/filebrowser"
+        trustProxyHeaders: true
+
+     auth:
+       adminUsername: "admin"
+       adminPassword: "admin"
+       methods:
+         password:
+           enabled: true
+         jwt:
+            enabled: true
+            secret: |
+              -----BEGIN PUBLIC KEY-----
+              MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs+5zvuCj4ug5TESV2jnU
+              0oyot55DhYwX05H70Ad+aGuQgLb/jzb27OB8P/j8Fa8osDGMz0nkkaNhnslPGEwX
+              7yjB8AlTSZbXy4T7lpmhkf2tP6Z0S8f4v7eovoCOFSdDQF+WVbcVyi6CFtNZ3bpR
+              4m1/mfyNhJE7cQIw0pO23nJctJacmY0OQWXwoaWAKinA9tlwXMLKLEUc9n5OHpWK
+              +w8s46Rjo2BFfFtsKEiHdjg9594kjQX6BnohqIHVdX2bFk+fFCF4m1HzePeYUy45
+              48MYXfGnuVzI934i3KbnZxUhEaSYqLDMsK7gsW65KjEYdq8YG/06ZGP+M3INs22n
+              OQIDAQAB
+              -----END PUBLIC KEY-----
+            algorithm: "RS256"
+            header: "X-JWT-Assertion"
+            userIdentifier: "sub"
+            groupsClaim: "filebrowserGroups"
+            adminGroup: "filebrowser:admin"
+         oidc:
+            enabled: true
+            clientId: "filebrowser"
+            clientSecret: "saigonanthai263"
+            issuerUrl: "http://localhost:8081"
+            scopes: "openid email profile groups"
+            userIdentifier: "sub"
+            groupsClaim: "filebrowserGroups"
+            adminGroup: "filebrowser:admin"
+
+# command for run program: .\tmp\filebrowser.exe -c config.local.yaml

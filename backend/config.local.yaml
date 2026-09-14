@@ -21,7 +21,8 @@
      http:
         port: 8085
         listen: "127.0.0.1"
-        baseURL: "/filebrowser"
+        baseURL: "/filebrowser/"
+        externalUrl: "http://localhost:8000"
         trustProxyHeaders: true
 
      auth:

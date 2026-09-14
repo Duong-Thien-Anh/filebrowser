@@ -16,10 +16,9 @@ import (
 	"github.com/gtsteffaniak/filebrowser/backend/internal/auth"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
+	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
 	"github.com/gtsteffaniak/go-logger/logger"
 	"golang.org/x/oauth2"
-	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
-
 )
 
 // userInfo holds all claims dynamically, plus pre-parsed Groups.
@@ -152,6 +151,10 @@ func parseOIDCGroupsValue(groupsVal interface{}) []string {
 
 // OidcRedirectURL builds the OAuth redirect_uri from trusted forwarded headers and the request host.
 func OidcRedirectURL(r *http.Request) string {
+	if externalURL := strings.TrimRight(settings.Config.Http.ExternalUrl, "/"); externalURL != "" {
+		return fmt.Sprintf("%s%sapi/auth/oidc/callback", externalURL, settings.Config.Http.BaseURL)
+	}
+
 	host, scheme := shareURLParams(r)
 	return fmt.Sprintf("%s://%s%sapi/auth/oidc/callback", scheme, host, settings.Config.Http.BaseURL)
 }
@@ -411,7 +414,7 @@ func loginWithOidcUser(w http.ResponseWriter, r *http.Request, username string, 
 			// Ensure the redirect is to a local path.
 			potentialRedirect, err := url.QueryUnescape(parts[1])
 			if err == nil && strings.HasPrefix(potentialRedirect, "/") {
-				fbRedirect = potentialRedirect
+				fbRedirect = oidcRedirectPath(potentialRedirect)
 			} else {
 				logger.Warningf("Blocked potentially malicious redirect to: %s", parts[1])
 			}
@@ -423,4 +426,23 @@ func loginWithOidcUser(w http.ResponseWriter, r *http.Request, username string, 
 
 	// Return 0 to indicate that the response has been handled by the redirect
 	return 0, nil
+}
+
+// oidcRedirectPath keeps redirects inside FileBrowser's configured mount path.
+// The SPA starts OIDC with redirect="/", which is the app root when served
+// directly but is the Kong root when FileBrowser is mounted at /filebrowser/.
+func oidcRedirectPath(path string) string {
+	baseURL := settings.Config.Http.BaseURL
+	if baseURL == "/" {
+		return path
+	}
+
+	baseURL = "/" + strings.Trim(strings.TrimSpace(baseURL), "/") + "/"
+	if path == "/" || path == "" {
+		return baseURL
+	}
+	if path == strings.TrimRight(baseURL, "/") || strings.HasPrefix(path, baseURL) {
+		return path
+	}
+	return baseURL + strings.TrimLeft(path, "/")
 }

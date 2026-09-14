@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 
@@ -46,6 +47,10 @@ func requestHost(r *http.Request) string {
 	cfg := &settings.Config
 	if cfg.Http.TrustProxyHeaders {
 		if h := firstForwardedValue(r.Header.Get("X-Forwarded-Host")); h != "" {
+			port := firstForwardedValue(r.Header.Get("X-Forwarded-Port"))
+			if port != "" && !strings.Contains(h, ":") && port != "80" && port != "443" {
+				return net.JoinHostPort(h, port)
+			}
 			return h
 		}
 	}

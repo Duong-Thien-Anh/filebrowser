@@ -65,6 +65,19 @@ func TestRequestHostTrustProxyHeaders(t *testing.T) {
 	}
 }
 
+func TestRequestHostUsesForwardedPort(t *testing.T) {
+	settings.Config.Http.TrustProxyHeaders = true
+	t.Cleanup(func() { settings.Config.Http.TrustProxyHeaders = false })
+
+	req := httptest.NewRequest("GET", "http://host.docker.internal:8085/", nil)
+	req.Header.Set("X-Forwarded-Host", "localhost")
+	req.Header.Set("X-Forwarded-Port", "8000")
+
+	if got := requestHost(req); got != "localhost:8000" {
+		t.Fatalf("requestHost = %q, want localhost:8000", got)
+	}
+}
+
 func TestRequestSchemeForPublicURL(t *testing.T) {
 	orig := settings.Config.Http.TrustProxyHeaders
 	t.Cleanup(func() { settings.Config.Http.TrustProxyHeaders = orig })

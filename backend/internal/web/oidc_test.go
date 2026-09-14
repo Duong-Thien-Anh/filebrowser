@@ -245,3 +245,19 @@ func TestOidcRedirectURLWithoutTrustProxyHeaders(t *testing.T) {
 		t.Fatalf("OidcRedirectURL = %q, want %q", got, want)
 	}
 }
+
+func TestOidcRedirectPathKeepsConfiguredBaseURL(t *testing.T) {
+	settings.Config.Http.BaseURL = "/filebrowser/"
+	t.Cleanup(func() { settings.Config.Http.BaseURL = "/" })
+
+	tests := map[string]string{
+		"/":             "/filebrowser/",
+		"/files":        "/filebrowser/files",
+		"/filebrowser/": "/filebrowser/",
+	}
+	for input, want := range tests {
+		if got := oidcRedirectPath(input); got != want {
+			t.Errorf("oidcRedirectPath(%q) = %q, want %q", input, got, want)
+		}
+	}
+}

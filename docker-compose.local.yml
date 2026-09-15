@@ -1,0 +1,32 @@
+  services:
+    filebrowser:
+      container_name: filebrowser
+      environment:
+        FILEBROWSER_CONFIG: /etc/filebrowser/config.local.yaml
+      build:
+        context: .
+        dockerfile: _docker/Dockerfile
+
+      ports:
+        - "8085:8085"
+        - "8085"
+
+      networks:
+        kong-gateway-net:
+          aliases:
+            - filebrowser
+
+      extra_hosts:
+        - "host.docker.internal:host-gateway"
+
+      volumes:
+        - "./backend/config.local.yaml:/home/filebrowser/data/config.local.yaml:ro"
+        - "D:/Projects/department-test:/department-test:rw"
+        - "D:/Projects/My workspace/filebrowser/runtime-data:/home/filebrowser/data"
+
+      restart: unless-stopped
+
+  networks:
+    kong-gateway-net:
+      external: true
+      name: kong-gateway-net

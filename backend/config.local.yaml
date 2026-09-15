@@ -14,13 +14,13 @@
              delete: false
        cacheDir: "tmp"
        database:
-         path: "filebrowser.sqlite"
+         path: "home/filebrowser/data/filebrowser.sqlite"
        logging:
           - levels: "debug|info|warning|error"
 
      http:
         port: 8085
-        listen: "127.0.0.1"
+        listen: "0.0.0.0"
         baseURL: "/filebrowser/"
         externalUrl: "http://localhost:8000"
         trustProxyHeaders: true
@@ -52,7 +52,8 @@
             enabled: true
             clientId: "filebrowser"
             clientSecret: "saigonanthai263"
-            issuerUrl: "http://localhost:8081"
+            # issuerUrl: "http://auth.localhost:8081" #for local dev
+            issuerUrl: "http://auth.localhost:8081" #for local docker desktop
             scopes: "openid email profile groups"
             userIdentifier: "sub"
             groupsClaim: "filebrowserGroups"

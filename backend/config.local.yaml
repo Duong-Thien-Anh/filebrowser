@@ -58,5 +58,6 @@
             userIdentifier: "preferred_username"
             groupsClaim: "filebrowserGroups"
             adminGroup: "filebrowser:admin"
+            logoutRedirectUrl: "http://localhost:5173/applications"
 
 # command for run program: .\tmp\filebrowser.exe -c config.local.yaml

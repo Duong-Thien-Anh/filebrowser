@@ -14,7 +14,7 @@
              delete: false
        cacheDir: "tmp"
        database:
-         path: "Database collect/docker-test/filebrowser/data/filebrowser.sqlite"
+         path: "home/filebrowser/data/filebrowser.sqlite"
        logging:
           - levels: "debug|info|warning|error"
 
@@ -51,13 +51,12 @@
          oidc:
             enabled: true
             clientId: "filebrowser"
-            clientSecret: "saigonanthai263"
-            # issuerUrl: "http://auth.localhost:8081" #for local dev
-            issuerUrl: "http://localhost:8081" #for local docker desktop
+            clientSecret: "saigonanthai263"           
+            issuerUrl: "http://localhost:8081" 
             scopes: "openid email profile groups"
             userIdentifier: "preferred_username"
             groupsClaim: "filebrowserGroups"
             adminGroup: "filebrowser:admin"
-            logoutRedirectUrl: "http://wuan.localhost:5173/application"
+            logoutRedirectUrl: "http://localhost:5173/application"
 
 # command for run program: .\tmp\filebrowser.exe -c config.local.yaml

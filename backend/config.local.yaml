@@ -58,6 +58,6 @@
             userIdentifier: "preferred_username"
             groupsClaim: "filebrowserGroups"
             adminGroup: "filebrowser:admin"
-            logoutRedirectUrl: "http://localhost:5173/applications"
+            logoutRedirectUrl: "http://wuan.localhost:5173/application"
 
 # command for run program: .\tmp\filebrowser.exe -c config.local.yaml

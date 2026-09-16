@@ -53,7 +53,7 @@
             clientId: "filebrowser"
             clientSecret: "saigonanthai263"
             # issuerUrl: "http://auth.localhost:8081" #for local dev
-            issuerUrl: "http://auth.localhost:8081" #for local docker desktop
+            issuerUrl: "http://localhost:8081" #for local docker desktop
             scopes: "openid email profile groups"
             userIdentifier: "sub"
             groupsClaim: "filebrowserGroups"

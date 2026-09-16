@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gtsteffaniak/filebrowser/backend/internal/errors"
-	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
-	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
+	"github.com/gtsteffaniak/filebrowser/backend/internal/errors"
+	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
+	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
 	"github.com/gtsteffaniak/go-cache/cache"
 	"github.com/gtsteffaniak/go-logger/logger"
 )
@@ -516,6 +516,15 @@ func (s *Storage) AddUserToGroup(group, username string) error {
 		return nil
 	}
 	s.Groups[group][username] = struct{}{}
+	if s.sqlStore != nil {
+		if err := s.sqlStore.SaveGroup(group, s.Groups[group]); err != nil {
+			delete(s.Groups[group], username)
+			if len(s.Groups[group]) == 0 {
+				delete(s.Groups, group)
+			}
+			return err
+		}
+	}
 	return nil
 }
 
@@ -550,6 +559,7 @@ func (s *Storage) SyncUserGroups(username string, newGroups []string) error {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	changed := false
+	changedGroups := make(map[string]struct{})
 
 	// Create a set of new groups for efficient lookup
 	newGroupsSet := make(StringSet, len(newGroups))
@@ -566,6 +576,7 @@ func (s *Storage) SyncUserGroups(username string, newGroups []string) error {
 		if userIsInGroup && !groupIsInNewSet {
 			delete(s.Groups[group], username)
 			changed = true
+			changedGroups[group] = struct{}{}
 		}
 	}
 
@@ -577,9 +588,17 @@ func (s *Storage) SyncUserGroups(username string, newGroups []string) error {
 		if _, ok := s.Groups[group][username]; !ok {
 			s.Groups[group][username] = struct{}{}
 			changed = true
+			changedGroups[group] = struct{}{}
 		}
 	}
 	if changed {
+		if s.sqlStore != nil {
+			for group := range changedGroups {
+				if err := s.sqlStore.SaveGroup(group, s.Groups[group]); err != nil {
+					return err
+				}
+			}
+		}
 		return nil
 	}
 	return nil

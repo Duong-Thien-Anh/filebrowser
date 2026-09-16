@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gtsteffaniak/filebrowser/backend/internal/errors"
-	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
-	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/access"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/sqldb"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
+	"github.com/gtsteffaniak/filebrowser/backend/internal/errors"
+	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
+	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
 )
 
 func idxPath(s string) utils.IndexPath {
@@ -198,6 +198,52 @@ func TestPermitted_GroupWhitelist(t *testing.T) {
 	}
 	if !s.Permitted("mnt/storage", idxPath("/vip"), "alice") {
 		t.Error("alice should be permitted (default allow behavior when DenyByDefault=false)")
+	}
+}
+
+func TestGroupMembershipPersistsToSQL(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "group_persistence_test_*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+
+	sqlStore, _, err := sqldb.NewSQLStore(filepath.Join(tempDir, "test.db"))
+	if err != nil {
+		t.Fatalf("failed to create SQL store: %v", err)
+	}
+	t.Cleanup(func() { sqlStore.Close() })
+
+	storage := access.NewStorage(nil)
+	storage.SetSQLStore(sqlStore)
+	if err := storage.AddUserToGroup("department:accounting", "alice"); err != nil {
+		t.Fatalf("AddUserToGroup failed: %v", err)
+	}
+
+	members, err := sqlStore.GetGroup("department:accounting")
+	if err != nil {
+		t.Fatalf("GetGroup failed: %v", err)
+	}
+	if _, ok := members["alice"]; !ok {
+		t.Fatal("expected added user to be persisted")
+	}
+
+	if err := storage.SyncUserGroups("alice", []string{"department:hr"}); err != nil {
+		t.Fatalf("SyncUserGroups failed: %v", err)
+	}
+	oldMembers, err := sqlStore.GetGroup("department:accounting")
+	if err != nil {
+		t.Fatalf("GetGroup for old group failed: %v", err)
+	}
+	if _, ok := oldMembers["alice"]; ok {
+		t.Fatal("expected old group membership to be removed from persistence")
+	}
+	newMembers, err := sqlStore.GetGroup("department:hr")
+	if err != nil {
+		t.Fatalf("GetGroup for new group failed: %v", err)
+	}
+	if _, ok := newMembers["alice"]; !ok {
+		t.Fatal("expected synced group membership to be persisted")
 	}
 }
 
@@ -1711,4 +1757,3 @@ func TestRemoveUserCascade_MixedUsers(t *testing.T) {
 
 	t.Log("✓ Cascade delete only affects the specified user")
 }
-

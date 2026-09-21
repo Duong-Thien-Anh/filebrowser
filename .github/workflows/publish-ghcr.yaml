@@ -3,7 +3,7 @@ name: Publish FileBrowser image
 on:
   push:
     branches:
-      - developer_oauth2
+      - main
   workflow_dispatch:
 
 permissions:
@@ -37,7 +37,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=developer_oauth2
+            type=raw,value=main
             type=sha
 
       - name: Build and push image

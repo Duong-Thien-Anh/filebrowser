@@ -464,12 +464,23 @@ export default {
             return;
           }
 
+          const fetchSource = decodeURIComponent(result.source);
+          const fetchPath = decodeURIComponent(result.path);
+
+          // OIDC often returns to /files/<source>/ after login. Regular users
+          // must enter their authorized scope instead of requesting source root.
+          if (!getters.isAdmin() && fetchPath === "/") {
+            const scopePath = getters.sourceScope(fetchSource);
+            if (scopePath !== "/") {
+              void router.replace(buildItemUrl(fetchSource, scopePath));
+              return;
+            }
+          }
+
           this.lastHash = "";
           mutations.resetSelected();
 
           this.loadingProgress = 10;
-          const fetchSource = decodeURIComponent(result.source);
-          const fetchPath = decodeURIComponent(result.path);
 
           const res = await fetchAuthItemWithParent(fetchSource, fetchPath);
           if (state.sources.count > 1) {

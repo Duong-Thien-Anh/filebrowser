@@ -446,7 +446,11 @@ export default {
                   if (!link.category.startsWith('source')) {
                     continue;
                   }
-                  targetPath = `/files/${encodeURIComponent(link.sourceName)}${link.target}`;
+                  // Preserve the historical URL form for source names containing '+'.
+                  // The router encodes spaces while keeping '+' literal, and the
+                  // Playwright fixtures use that canonical landing URL.
+                  const encodedSource = encodeURIComponent(link.sourceName).replace(/%2B/g, "+");
+                  targetPath = `/files/${encodedSource}${link.target}`;
                   break;
                 }
               }

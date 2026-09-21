@@ -14,13 +14,13 @@
              delete: false
        cacheDir: "tmp"
        database:
-         path: "filebrowser.sqlite"
+         path: "home/filebrowser/data/filebrowser.sqlite"
        logging:
           - levels: "debug|info|warning|error"
 
      http:
         port: 8085
-        listen: "127.0.0.1"
+        listen: "0.0.0.0"
         baseURL: "/filebrowser/"
         externalUrl: "http://localhost:8000"
         trustProxyHeaders: true
@@ -51,11 +51,12 @@
          oidc:
             enabled: true
             clientId: "filebrowser"
-            clientSecret: "saigonanthai263"
-            issuerUrl: "http://localhost:8081"
+            clientSecret: "saigonanthai263"           
+            issuerUrl: "http://localhost:8081" 
             scopes: "openid email profile groups"
-            userIdentifier: "sub"
+            userIdentifier: "preferred_username"
             groupsClaim: "filebrowserGroups"
             adminGroup: "filebrowser:admin"
+            logoutRedirectUrl: "http://localhost:5173/application"
 
 # command for run program: .\tmp\filebrowser.exe -c config.local.yaml

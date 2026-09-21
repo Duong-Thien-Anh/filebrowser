@@ -186,7 +186,7 @@
 <script>
 import { state, getters, mutations } from "@/store";
 import ProgressBar from "@/components/ProgressBar.vue";
-import { goToItem } from "@/utils/url";
+import { encodePath, goToItem } from "@/utils/url";
 import { getIconClass } from "@/utils/material-symbols";
 import { getObjectProperty } from '@/utils/object.js';
 import IndexInfo from "@/components/files/IndexInfo.vue";
@@ -357,8 +357,11 @@ export default {
         const sourceInfo = this.sourceInfo[link.sourceName];
         if (!sourceInfo) return '#'; // Source not found
         const encodedSourceName = encodeURIComponent(link.sourceName);
-        const targetPath = link.target.startsWith('/') ? link.target.substring(1) : link.target;
-        fullPath = `/files/${encodedSourceName}/${targetPath}`;
+        const target = !getters.isAdmin() && (!link.target || link.target === "/")
+          ? getters.sourceScope(link.sourceName)
+          : (link.target || "/");
+        const targetPath = target.startsWith('/') ? target.substring(1) : target;
+        fullPath = `/files/${encodedSourceName}/${encodePath(targetPath)}`;
       } else {
         // For other links (tools, custom, share), use target as-is
         fullPath = link.target;
@@ -463,7 +466,9 @@ export default {
       if (this.isSourceCategory(link.category)) {
         // For source links, use sourceName and target (relative path)
         if (!link.sourceName) return;
-        const path = link.target || "/";
+        const path = !getters.isAdmin() && (!link.target || link.target === "/")
+          ? getters.sourceScope(link.sourceName)
+          : (link.target || "/");
         goToItem(link.sourceName, path, {}, false, false);
         return;
       }
@@ -686,7 +691,8 @@ export default {
       if (!sourceName || sourceName === this.activeSource) {
         return;
       }
-      goToItem(sourceName, '/', {}, false, false);
+      const path = getters.isAdmin() ? "/" : getters.sourceScope(sourceName);
+      goToItem(sourceName, path, {}, false, false);
     },
   },
 };

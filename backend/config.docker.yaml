@@ -1,0 +1,39 @@
+server:
+  sources:
+    - path: "/department-test"
+      name: "workspace"
+      config:
+        defaultEnabled: true
+        defaultUserScope: "/"
+        denyByDefault: true
+        defaultPermissions:
+          view: true
+          download: true
+          modify: false
+          create: false
+          delete: false
+  cacheDir: "/var/lib/filebrowser/tmp"
+  database:
+    path: "/var/lib/filebrowser/filebrowser.sqlite"
+  logging:
+    - levels: "debug|info|warning|error"
+
+http:
+  port: 8085
+  listen: "0.0.0.0"
+  baseURL: "/filebrowser/"
+  externalUrl: "http://localhost:8000"
+  trustProxyHeaders: true
+
+auth:
+  methods:
+    oidc:
+      enabled: true
+      clientId: "filebrowser"
+      clientSecret: "saigonanthai263"
+      issuerUrl: "http://wuan.localhost:8000/auth"
+      scopes: "openid email profile groups"
+      userIdentifier: "preferred_username"
+      groupsClaim: "filebrowserGroups"
+      adminGroup: "filebrowser:admin"
+      logoutRedirectUrl: "http://wuan.localhost:5173/application"

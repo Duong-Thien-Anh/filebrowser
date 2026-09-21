@@ -2,7 +2,7 @@
   <div v-if="items.length > 0" id="breadcrumbs">
     <ul>
       <li>
-        <router-link :to="base" :aria-label="$t('general.home')" :title="$t('general.home')"
+        <router-link :to="homeLink.url" :aria-label="$t('general.home')" :title="$t('general.home')"
           :class="{ 'droppable-breadcrumb': isDroppable, 'drag-over': dragOverItem?.type === 'home' }"
           @dragenter.prevent="dragEnter($event, homeLink)"
           @dragleave.prevent="dragLeave($event, homeLink)"
@@ -77,7 +77,7 @@ export default {
       return {
         name: this.$t('general.home'),
         url: this.base,
-        path: '/',
+        path: getters.isShare() ? '/' : getters.sourceScope(state.req?.source),
         type: 'home',
       };
     },
@@ -88,8 +88,22 @@ export default {
     items() {
       const req = state.req;
       if (!req.path) return [];
-      const encodedPathString = url.encodedPath(state.req.path);
-      const originalParts = state.req.path.split("/");
+      const scopePath = getters.isShare() ? "/" : getters.sourceScope(req.source);
+      const normalizedScope = scopePath === "/" ? "/" : scopePath.replace(/\/$/, "");
+      let relativePath = req.path;
+      let accumulatedPath = normalizedScope === "/" ? "" : normalizedScope.slice(1);
+
+      if (normalizedScope !== "/") {
+        if (req.path === normalizedScope || req.path === `${normalizedScope}/`) {
+          return [];
+        }
+        if (req.path.startsWith(`${normalizedScope}/`)) {
+          relativePath = req.path.slice(normalizedScope.length);
+        }
+      }
+
+      const encodedPathString = url.encodedPath(relativePath);
+      const originalParts = relativePath.split("/");
       const encodedParts = encodedPathString.split("/");
       // Remove empty strings from both arrays consistently
       if (originalParts[0] === "") {
@@ -102,7 +116,6 @@ export default {
       }
       const breadcrumbs = [];
       let buildRef = this.base;
-      let accumulatedPath = "";
 
       for (let i = 0; i < originalParts.length; i++) {
         const origPart = getObjectProperty(originalParts, i);
@@ -136,7 +149,10 @@ export default {
       if (getters.isShare()) {
         this.base = getters.sharePathBase();
       } else {
-        this.base = `/files/${state.req.source}/`;
+        const source = state.req.source || state.sources.current;
+        this.base = source
+          ? `${url.buildItemUrl(source, getters.sourceScope(source))}/`
+          : "/files/";
       }
     },
 

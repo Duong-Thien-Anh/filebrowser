@@ -1,0 +1,36 @@
+  server:
+    sources:
+      - path: "/data/filebrowser"
+        name: "workspace"
+        config:
+          defaultEnabled: true
+          defaultUserScope: "/"
+          denyByDefault: true
+          defaultPermissions:
+            view: true
+            download: true
+            modify: false
+            create: false
+            delete: false
+    cacheDir: "/var/lib/filebrowser/tmp"
+    database:
+      path: "/var/lib/filebrowser/filebrowser.sqlite"
+
+  http:
+    port: 8085
+    listen: "0.0.0.0"
+    baseURL: "/filebrowser/"
+    externalUrl: "http://10.1.1.14:8000"
+    trustProxyHeaders: true
+
+  auth:
+    methods:
+      oidc:
+        enabled: true
+        clientId: "filebrowser"
+        clientSecret: "saigonanthai263"
+        issuerUrl: "http://10.1.1.14:8000/auth"
+        scopes: "openid email profile groups"
+        userIdentifier: "email"
+        groupsClaim: "filebrowserGroups"
+        adminGroup: "filebrowser:admin"

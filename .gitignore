@@ -4,6 +4,7 @@
 !_docker/src/settings/backend/database.db.old
 *.sqlite**
 *.bak
+*.tar
 *.log
 *.mjs
 _old

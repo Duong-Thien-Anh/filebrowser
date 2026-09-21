@@ -20,7 +20,7 @@ import Preview from "@/views/files/Preview.vue";
 import ListingView from "@/views/files/ListingView.vue";
 import { state, mutations, getters } from "@/store";
 import router from "@/router";
-import { extractSourceFromPath, removeLastDir, base64Encode, removeTrailingSlash } from "@/utils/url.js";
+import { buildItemUrl, extractSourceFromPath, removeLastDir, base64Encode, removeTrailingSlash } from "@/utils/url.js";
 import LoadingSpinner from "@/components/LoadingSpinner.vue";
 import { globalVars } from "@/utils/constants";
 import { isRichTextPreviewMimeType } from "@/utils/mimetype";
@@ -434,14 +434,21 @@ export default {
 
           // Redirect if multiple sources and user went to /files/
           if (routePath === "/files") {
-            let targetPath = `/files/${state.sources.current}`;
-            for (const link of state.user?.sidebarLinks || []) {
-              if (link.target.startsWith('/')) {
-                if (!link.category.startsWith('source')) {
-                  continue;
+            const defaultSource = state.sources.current;
+            let targetPath = defaultSource
+              ? buildItemUrl(defaultSource, getters.sourceScope(defaultSource))
+              : "/files/";
+
+            // Administrators may keep their configured source link as the landing page.
+            if (getters.isAdmin()) {
+              for (const link of state.user?.sidebarLinks || []) {
+                if (link.target.startsWith('/')) {
+                  if (!link.category.startsWith('source')) {
+                    continue;
+                  }
+                  targetPath = `/files/${encodeURIComponent(link.sourceName)}${link.target}`;
+                  break;
                 }
-                targetPath = `/files/${link.sourceName}${link.target}`;
-                break;
               }
             }
             void router.push(targetPath);

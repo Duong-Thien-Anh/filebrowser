@@ -651,6 +651,16 @@ export const getters = {
     const scopeEntry = state.user.scopes.find((entry) => entry?.name === activeSource);
     return scopeEntry?.permissions ?? denyFile;
   },
+  sourceScope: (source) => {
+    const activeSource =
+      source ?? state.req?.source ?? state.sources?.current ?? "";
+    const scope = state.user?.scopes?.find((entry) => entry?.name === activeSource)?.scope;
+    if (typeof scope !== "string" || scope.trim() === "") {
+      return "/";
+    }
+    const normalizedScope = scope.startsWith("/") ? scope : `/${scope}`;
+    return normalizedScope.length > 1 ? normalizedScope.replace(/\/+$/, "") : "/";
+  },
   /** Whether the current user may create files/folders in the given source (share-aware). */
   canCreateInSource: (source) => {
     if (getters.isShare()) {

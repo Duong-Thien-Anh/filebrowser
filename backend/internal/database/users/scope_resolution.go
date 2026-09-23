@@ -76,8 +76,11 @@ func (u *User) ResolveScopeForSourcePath(sourcePath, requestPath string) (Resolv
 			candidateScopes = append(candidateScopes, scope.Scope)
 		}
 		return ResolvedScope{
-			IndexPath:       requestPath,
-			DisplayScope:    requestPath,
+			IndexPath: requestPath,
+			// Keep virtual-parent listings absolute. Stripping the parent here
+			// would make a child such as /Marketing ambiguous on the next API
+			// request when multiple department scopes share this source.
+			DisplayScope:    "/",
 			Permissions:     permissions,
 			Virtual:         true,
 			CandidateScopes: candidateScopes,

@@ -39,7 +39,7 @@ func TestResolveScopeForSourcePathUsesCommonParentWithoutPrefixingFirstChild(t *
 	if resolved.IndexPath != "/Sài Gòn An Thái" {
 		t.Fatalf("resolved parent path = %q", resolved.IndexPath)
 	}
-	if resolved.DisplayScope != "/Sài Gòn An Thái" || !resolved.Virtual {
+	if resolved.DisplayScope != "/" || !resolved.Virtual {
 		t.Fatalf("resolved parent = %+v", resolved)
 	}
 	if resolved.Permissions.Modify || resolved.Permissions.Create || resolved.Permissions.Delete {

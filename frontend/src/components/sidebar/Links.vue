@@ -374,17 +374,7 @@ export default {
       if (!this.isLoggedIn) {
         return;
       }
-
-      // Regular users must return to the source scope assigned to them.
-      // Navigating to '/' would resolve to /files/<source>/ and can be
-      // denied when the source is configured with denyByDefault.
-      const source = state.req?.source || state.sources.current || this.activeSource;
-      const path = getters.isAdmin() ? "/" : getters.sourceScope(source);
-      if (source) {
-        goToItem(source, path, {}, false, false);
-      } else {
-        this.$router.push('/');
-      }
+      this.$router.push('/');
     },
     getDefaultLinks() {
       // Generate default links from sources the user can access.

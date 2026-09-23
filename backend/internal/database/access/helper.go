@@ -1,13 +1,18 @@
 package access
 
 import (
+	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/errors"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing/iteminfo"
 )
 
-func (s *Storage) CheckChildItemAccess(response *iteminfo.FileInfo, index *indexing.Index, username string) error {
+func (s *Storage) CheckChildItemAccess(response *iteminfo.FileInfo, index *indexing.Index, user *users.User) error {
+	if user == nil {
+		return errors.ErrAccessDenied
+	}
+	username := user.Username
 
 	// Collect all item names to check
 	allItemNames := make([]string, 0, len(response.Folders)+len(response.Files))
@@ -22,7 +27,7 @@ func (s *Storage) CheckChildItemAccess(response *iteminfo.FileInfo, index *index
 	// response is an ExtendedFileInfo which represents a directory (has Folders and Files)
 	parentPath := index.MakeIndexPath(response.Path, true)
 
-	if !s.HasAnyVisibleItems(index.Path, parentPath, allItemNames, username) && len(allItemNames) > 0 {
+	if !s.HasAnyVisibleItems(index.Path, parentPath, allItemNames, username) && !hasScopedDescendant(index.Path, parentPath, allItemNames, user) && len(allItemNames) > 0 {
 		return errors.ErrAccessDenied
 	}
 
@@ -36,7 +41,8 @@ func (s *Storage) CheckChildItemAccess(response *iteminfo.FileInfo, index *index
 
 	// Check each subfolder for access permissions
 	for _, folder := range originalFolders {
-		if s.Permitted(index.Path, parentPath.Join(folder.Name, true), username) {
+		childPath := parentPath.Join(folder.Name, true)
+		if s.Permitted(index.Path, childPath, username) || user.ScopeHasDescendant(index.Path, childPath.String()) {
 			response.Folders = append(response.Folders, folder)
 		}
 	}
@@ -48,6 +54,15 @@ func (s *Storage) CheckChildItemAccess(response *iteminfo.FileInfo, index *index
 	}
 
 	return nil
+}
+
+func hasScopedDescendant(sourcePath string, parentPath utils.IndexPath, itemNames []string, user *users.User) bool {
+	for _, itemName := range itemNames {
+		if user.ScopeHasDescendant(sourcePath, parentPath.Join(itemName, true).String()) {
+			return true
+		}
+	}
+	return false
 }
 
 type FileOptionsExtended struct {

@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/access"
+	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing/iteminfo"
@@ -128,11 +129,11 @@ func RevokeToken(token string) error {
 }
 
 // CheckChildItemAccess filters directory listings using in-memory access rules.
-func CheckChildItemAccess(response *iteminfo.FileInfo, idx *indexing.Index, username string) error {
+func CheckChildItemAccess(response *iteminfo.FileInfo, idx *indexing.Index, user *users.User) error {
 	if accessDb == nil {
 		return nil
 	}
-	return accessDb.CheckChildItemAccess(response, idx, username)
+	return accessDb.CheckChildItemAccess(response, idx, user)
 }
 
 // UpdateAccessRulesOnMove rewrites access rule paths when a resource moves within one source.

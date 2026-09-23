@@ -73,3 +73,22 @@ func TestScopeContainsOrHasChildHidesUnassignedSibling(t *testing.T) {
 		t.Fatal("unassigned sibling must not be visible")
 	}
 }
+
+func TestScopeHasDescendantKeepsIntermediateFoldersVisible(t *testing.T) {
+	user := &User{BackendScopes: []BackendScope{
+		{Path: "/data/filebrowser", Scope: "/Root/Team/Marketing"},
+	}}
+
+	if !user.ScopeHasDescendant("/data/filebrowser", "/Root") {
+		t.Fatal("expected root ancestor to lead to an assigned scope")
+	}
+	if !user.ScopeHasDescendant("/data/filebrowser", "/Root/Team") {
+		t.Fatal("expected intermediate ancestor to lead to an assigned scope")
+	}
+	if user.ScopeHasDescendant("/data/filebrowser", "/Root/Team/Marketing") {
+		t.Fatal("assigned scope itself is not a descendant")
+	}
+	if user.ScopeHasDescendant("/data/filebrowser", "/Root/Team/Finance") {
+		t.Fatal("sibling path must not be treated as an ancestor")
+	}
+}

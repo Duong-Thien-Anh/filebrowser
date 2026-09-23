@@ -288,7 +288,7 @@ func getDirItemsImpl(opts utils.FileOptions, user *users.User, s *Service) (Item
 	if info.Type != "directory" {
 		return items, fmt.Errorf("path is not a directory: %v ", indexPath)
 	}
-	if err := s.checkChildItemAccess(info, idx, user.Username); err != nil {
+	if err := s.checkChildItemAccess(info, idx, user); err != nil {
 		return items, err
 	}
 	if resolved.Virtual {
@@ -353,7 +353,7 @@ func fileInfoFasterImpl(opts utils.FileOptions, user *users.User, s *Service) (*
 	}
 	// otherwise response keeps unfiltered Folders/Files while CheckChildItemAccess only mutates info.
 	if info.Type == "directory" {
-		if err := s.checkChildItemAccess(info, idx, user.Username); err != nil {
+		if err := s.checkChildItemAccess(info, idx, user); err != nil {
 			return response, err
 		}
 		if resolved.Virtual {

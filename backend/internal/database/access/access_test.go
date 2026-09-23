@@ -11,6 +11,8 @@ import (
 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/errors"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
+	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing"
+	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing/iteminfo"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
 )
 
@@ -1280,6 +1282,49 @@ func TestHasAnyVisibleItems(t *testing.T) {
 	}
 
 	t.Log("✓ HasAnyVisibleItems correctly checks access permissions for items")
+}
+
+func TestCheckChildItemAccessKeepsAncestorOfAssignedScope(t *testing.T) {
+	access.ClearCache()
+	s, _ := createTestStorage(t)
+
+	originalSourceMap := settings.Config.Server.SourceMap
+	defer func() {
+		settings.Config.Server.SourceMap = originalSourceMap
+		access.ClearCache()
+	}()
+	settings.Config.Server.SourceMap = map[string]*settings.Source{
+		"TEST": {
+			Path:   "TEST",
+			Name:   "TEST",
+			Config: settings.SourceConfig{DenyByDefault: true},
+		},
+	}
+
+	user := &users.User{
+		FrontendUser: users.FrontendUser{Username: "lepht"},
+		BackendScopes: []users.BackendScope{{
+			Path:  "TEST",
+			Scope: "/Root/Team/Marketing",
+		}},
+	}
+	if err := s.AllowUser("TEST", idxPath("/Root/Team/Marketing"), user.Username); err != nil {
+		t.Fatalf("allow assigned scope: %v", err)
+	}
+
+	idx := &indexing.Index{Source: settings.Source{Path: "TEST", Name: "TEST"}}
+	response := &iteminfo.FileInfo{
+		ItemInfo: iteminfo.ItemInfo{Type: "directory"},
+		Path:     "/Root",
+		Folders:  []iteminfo.ItemInfo{{Name: "Team", Type: "directory"}},
+	}
+
+	if err := s.CheckChildItemAccess(response, idx, user); err != nil {
+		t.Fatalf("ancestor listing should remain accessible: %v", err)
+	}
+	if len(response.Folders) != 1 || response.Folders[0].Name != "Team" {
+		t.Fatalf("ancestor folder was filtered: %+v", response.Folders)
+	}
 }
 
 // TestRemoveUserCascade_OnlyRemovesSpecificList tests that cascade delete only removes from the specified list

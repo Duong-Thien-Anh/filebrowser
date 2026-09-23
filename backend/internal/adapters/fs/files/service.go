@@ -11,7 +11,7 @@ import (
 
 // ChildAccessChecker filters directory listings by access rules.
 type ChildAccessChecker interface {
-	CheckChildItemAccess(response *iteminfo.FileInfo, idx *indexing.Index, username string) error
+	CheckChildItemAccess(response *iteminfo.FileInfo, idx *indexing.Index, user *users.User) error
 }
 
 // Service performs filesystem operations with injected access and share dependencies.
@@ -47,11 +47,11 @@ func (s *Service) accessPermitted(sourcePath string, indexPath utils.IndexPath, 
 	return s.access.AccessPermitted(sourcePath, indexPath, username)
 }
 
-func (s *Service) checkChildItemAccess(response *iteminfo.FileInfo, idx *indexing.Index, username string) error {
+func (s *Service) checkChildItemAccess(response *iteminfo.FileInfo, idx *indexing.Index, user *users.User) error {
 	if s.child == nil {
 		return nil
 	}
-	return s.child.CheckChildItemAccess(response, idx, username)
+	return s.child.CheckChildItemAccess(response, idx, user)
 }
 
 func (s *Service) pathIsShared(path, source string, userID uint64) bool {

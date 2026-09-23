@@ -120,6 +120,25 @@ func (u *User) ScopeContainsOrHasChild(sourcePath, requestPath string) bool {
 	return false
 }
 
+// ScopeHasDescendant reports whether requestPath is an ancestor of an assigned
+// scope. It is intentionally stricter than ScopeContainsOrHasChild: a scope
+// must be below requestPath, not merely equal to it or below a child path.
+// Callers use this to keep intermediate folders visible while navigating to a
+// scoped directory without bypassing ACL checks inside the concrete scope.
+func (u *User) ScopeHasDescendant(sourcePath, requestPath string) bool {
+	requestPath = normalizeScope(requestPath)
+	for _, scope := range u.BackendScopes {
+		if scope.Path != sourcePath {
+			continue
+		}
+		scopePath := normalizeScope(scope.Scope)
+		if requestPath != scopePath && pathContains(requestPath, scopePath) {
+			return true
+		}
+	}
+	return false
+}
+
 func effectiveScopePermissions(scope BackendScope) SourceFilePermissions {
 	perms := scope.Permissions
 	if perms.IsUnset() && scope.Permissions.Configured == false {

@@ -25,10 +25,9 @@ import (
 	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing/iteminfo"
+	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
 	"github.com/gtsteffaniak/go-cache/cache"
 	"github.com/gtsteffaniak/go-logger/logger"
-	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
-
 )
 
 var pauseCache = cache.NewCache[string](1 * time.Minute)
@@ -144,7 +143,7 @@ func validateMoveOperation(src, dst string, isSrcDir bool) error {
 func resourceGetHandler(w http.ResponseWriter, r *http.Request, d *Context) (int, error) {
 	path := r.URL.Query().Get("path")
 	source := r.URL.Query().Get("source")
-	filePerms, err := effectiveFilePerms(d, source)
+	filePerms, err := effectiveFilePermsAtPath(d, source, path)
 	if err != nil {
 		return http.StatusForbidden, err
 	}
@@ -231,7 +230,7 @@ func publicGetResourceHandler(w http.ResponseWriter, r *http.Request, d *Context
 func resourceDeleteHandler(w http.ResponseWriter, r *http.Request, d *Context) (int, error) {
 	path := r.URL.Query().Get("path")
 	source := r.URL.Query().Get("source")
-	filePerms, err := effectiveFilePerms(d, source)
+	filePerms, err := effectiveFilePermsAtPath(d, source, path)
 	if err != nil {
 		return http.StatusForbidden, err
 	}
@@ -608,14 +607,14 @@ func resourcePauseHandler(w http.ResponseWriter, r *http.Request, d *Context) (i
 		return http.StatusBadRequest, fmt.Errorf("use public pause endpoint for share uploads")
 	}
 	source := r.URL.Query().Get("source")
-	filePerms, err := effectiveFilePerms(d, source)
+	path := r.URL.Query().Get("path")
+	filePerms, err := effectiveFilePermsAtPath(d, source, path)
 	if err != nil {
 		return http.StatusForbidden, err
 	}
 	if !filePerms.Create {
 		return http.StatusForbidden, fmt.Errorf("user is not allowed to pause uploads")
 	}
-	path := r.URL.Query().Get("path")
 	cleanPath, err := utils.SanitizePath(path)
 	if err != nil {
 		return http.StatusBadRequest, err
@@ -625,11 +624,11 @@ func resourcePauseHandler(w http.ResponseWriter, r *http.Request, d *Context) (i
 		logger.Debugf("source %s not found", source)
 		return http.StatusNotFound, fmt.Errorf("source %s not found", source)
 	}
-	userscope, err := d.User.GetScopeForSourceName(source)
+	resolvedPath, err := files.ResolvePath(utils.FileOptions{Path: cleanPath, Source: source}, d.User)
 	if err != nil {
 		return http.StatusForbidden, err
 	}
-	fullIndexPath := utils.JoinPathAsUnix(userscope, cleanPath)
+	fullIndexPath := resolvedPath.IndexPath
 	if !state.AccessPermitted(idx.Path, utils.IndexPathFromNormalized(fullIndexPath, true), d.User.Username) {
 		return http.StatusForbidden, fmt.Errorf("access denied to path %s", fullIndexPath)
 	}
@@ -711,20 +710,18 @@ func ResourcePostHandler(w http.ResponseWriter, r *http.Request, d *Context) (in
 		FollowSymlinks: true,
 	}
 
-	userscope, err := filePermUser.GetScopeForSourceName(source)
+	resolvedPath, err := files.ResolvePath(fileOpts, filePermUser)
 	if err != nil {
-		logger.Debugf("error getting scope from source name: %v", err)
+		logger.Debugf("error resolving scoped path: %v", err)
 		return http.StatusForbidden, err
 	}
-	userscope = strings.TrimRight(userscope, "/")
-
-	fullIndexPath := utils.JoinPathAsUnix(userscope, path)
+	fullIndexPath := resolvedPath.IndexPath
 
 	// get scoped path
 	realPath, _, _ := idx.GetRealPath(fullIndexPath)
 
 	if d.Share.Hash == "" {
-		filePerms, permErr := effectiveFilePerms(d, source)
+		filePerms, permErr := effectiveFilePermsAtPath(d, source, path)
 		if permErr != nil {
 			return http.StatusForbidden, permErr
 		}
@@ -972,7 +969,7 @@ func resourcePutHandler(w http.ResponseWriter, r *http.Request, d *Context) (int
 		return http.StatusBadRequest, err
 	}
 	path = cleanPath
-	filePerms, err := effectiveFilePerms(d, source)
+	filePerms, err := effectiveFilePermsAtPath(d, source, path)
 	if err != nil {
 		return http.StatusForbidden, err
 	}
@@ -980,11 +977,11 @@ func resourcePutHandler(w http.ResponseWriter, r *http.Request, d *Context) (int
 		return http.StatusForbidden, fmt.Errorf("user is not allowed to modify files in this source")
 	}
 	// Get user scope to resolve full index path for write operation
-	userScope, err := d.User.GetScopeForSourceName(source)
+	resolvedPath, err := files.ResolvePath(utils.FileOptions{Path: path, Source: source}, d.User)
 	if err != nil {
 		return http.StatusForbidden, err
 	}
-	fullIndexPath := utils.JoinPathAsUnix(userScope, path)
+	fullIndexPath := resolvedPath.IndexPath
 	// Check access control for the target path
 	idx := indexing.GetIndex(source)
 	if idx == nil {

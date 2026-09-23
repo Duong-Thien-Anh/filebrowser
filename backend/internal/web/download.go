@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/gtsteffaniak/filebrowser/backend/internal/activity"
+	"github.com/gtsteffaniak/filebrowser/backend/internal/adapters/fs/files"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/errors"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/state"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
@@ -214,8 +215,12 @@ func publicDownloadHandler(w http.ResponseWriter, r *http.Request, d *Context) (
 }
 
 func RawFilesHandler(w http.ResponseWriter, r *http.Request, d *Context, source string, fileList []string) (int, error) {
+	if len(fileList) == 0 && d.Share.Hash == "" {
+		return http.StatusBadRequest, fmt.Errorf("no files specified")
+	}
+	firstFilePath := fileList[0]
 	if d.Share.Hash == "" {
-		filePerms, err := effectiveFilePerms(d, source)
+		filePerms, err := effectiveFilePermsAtPath(d, source, firstFilePath)
 		if err != nil {
 			return http.StatusForbidden, err
 		}
@@ -224,25 +229,20 @@ func RawFilesHandler(w http.ResponseWriter, r *http.Request, d *Context, source 
 		}
 	}
 
-	if len(fileList) == 0 && d.Share.Hash == "" {
-		return http.StatusBadRequest, fmt.Errorf("no files specified")
-	}
-
-	firstFilePath := fileList[0]
 	displayFileList := ResolveDisplayFileList(d, source, fileList)
 	var err error
 	var status int
-	var userscope string
 	fileName := filepath.Base(firstFilePath)
 
-	// modify all filepaths for user scope
+	// Resolve every path independently because files in one download can belong
+	// to different department scopes within the same source.
 	if d.Share.Hash == "" {
-		userscope, err = d.User.GetScopeForSourceName(source)
-		if err != nil {
-			return http.StatusForbidden, err
-		}
 		for i, filePath := range fileList {
-			fileList[i] = utils.JoinPathAsUnix(userscope, filePath)
+			resolvedPath, resolveErr := files.ResolvePath(utils.FileOptions{Path: filePath, Source: source}, d.User)
+			if resolveErr != nil {
+				return http.StatusForbidden, resolveErr
+			}
+			fileList[i] = resolvedPath.IndexPath
 		}
 	}
 	firstFilePath = fileList[0]

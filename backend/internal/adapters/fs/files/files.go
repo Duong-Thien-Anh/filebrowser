@@ -15,13 +15,13 @@ import (
 
 	"github.com/dhowden/tag"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/adapters/fs/fileutils"
-	"github.com/gtsteffaniak/filebrowser/backend/internal/errors"
-	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
-	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
+	"github.com/gtsteffaniak/filebrowser/backend/internal/errors"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/ffmpeg"
+	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing/iteminfo"
+	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
 	"github.com/gtsteffaniak/go-logger/logger"
 )
 
@@ -125,49 +125,122 @@ func CheckPermissions(opts utils.FileOptions, user *users.User) (string, string,
 	return CheckPermissionsFunc(opts, user)
 }
 
+// ResolvedPath is the physical index path and the effective permissions for a
+// request. Virtual is true when the request is a common parent of multiple
+// configured scopes.
+type ResolvedPath struct {
+	IndexPath       string
+	UserScope       string
+	Permissions     users.SourceFilePermissions
+	Virtual         bool
+	CandidateScopes []string
+}
+
+// ResolvePath resolves a user request against all scopes assigned to its source.
+// It is exported for handlers that need the exact physical path for writes,
+// downloads, or pause markers.
+func ResolvePath(opts utils.FileOptions, user *users.User) (ResolvedPath, error) {
+	return resolvePathImpl(opts, user, svc())
+}
+
 // checkPermissionsImpl is the actual implementation of CheckPermissions
 func checkPermissionsImpl(opts utils.FileOptions, user *users.User, s *Service) (string, string, error) {
+	resolved, err := resolvePathImpl(opts, user, s)
+	if err != nil {
+		return resolved.IndexPath, resolved.UserScope, err
+	}
+	return resolved.IndexPath, resolved.UserScope, nil
+}
+
+func resolvePathImpl(opts utils.FileOptions, user *users.User, s *Service) (ResolvedPath, error) {
+	resolved := ResolvedPath{}
 	if user == nil {
-		return "", "", fmt.Errorf("user not provided")
+		return resolved, fmt.Errorf("user not provided")
 	}
 	if opts.Path == "" {
-		return "", "", fmt.Errorf("path not provided")
+		return resolved, fmt.Errorf("path not provided")
 	}
 	if opts.Source == "" {
-		return "", "", fmt.Errorf("source not provided")
+		return resolved, fmt.Errorf("source not provided")
 	}
 
 	// Get index
 	idx := indexing.GetIndex(opts.Source)
 	if idx == nil {
-		return "", "", fmt.Errorf("could not get index: %v ", opts.Source)
-	}
-
-	// Resolve user scope
-	userScope, scopeErr := user.GetScopeForSourcePath(idx.Path)
-	if scopeErr != nil || userScope == "" {
-		return "", "", fmt.Errorf("user has no access to source: %v", opts.Source)
+		return resolved, fmt.Errorf("could not get index: %v ", opts.Source)
 	}
 
 	safePath, err := utils.SanitizePath(opts.Path)
 	if err != nil {
-		return "", "", errors.ErrAccessDenied
+		return resolved, errors.ErrAccessDenied
 	}
 
-	indexPath := utils.JoinPathAsUnix(userScope, safePath)
+	scope, scopeErr := user.ResolveScopeForSourcePath(idx.Path, safePath)
+	if scopeErr != nil {
+		return resolved, fmt.Errorf("user has no access to source path %q: %v", safePath, scopeErr)
+	}
+	resolved = ResolvedPath{
+		IndexPath:       scope.IndexPath,
+		UserScope:       scope.DisplayScope,
+		Permissions:     scope.Permissions,
+		Virtual:         scope.Virtual,
+		CandidateScopes: scope.CandidateScopes,
+	}
+
+	indexPath := resolved.IndexPath
 	parsedPath, err := utils.ParseSanitizedIndexPath(indexPath, true)
 	if err != nil {
-		return "", "", errors.ErrAccessDenied
+		return resolved, errors.ErrAccessDenied
 	}
-	if !s.accessPermitted(idx.Path, parsedPath, user.Username) {
-		return indexPath, "", errors.ErrAccessDenied
+	permitted := s.accessPermitted(idx.Path, parsedPath, user.Username)
+	if !permitted && resolved.Virtual {
+		// A virtual parent can legitimately have no direct ACL rule while its
+		// assigned child scopes do. Permit navigation only when at least one
+		// assigned child is ACL-permitted.
+		for _, candidate := range resolved.CandidateScopes {
+			candidatePath, candidateErr := utils.ParseSanitizedIndexPath(candidate, true)
+			if candidateErr == nil && s.accessPermitted(idx.Path, candidatePath, user.Username) {
+				permitted = true
+				break
+			}
+		}
 	}
-	return indexPath, userScope, nil
+	if !permitted {
+		return resolved, errors.ErrAccessDenied
+	}
+	return resolved, nil
 }
 
 type Items struct {
 	Files   []string `json:"files,omitempty"`
 	Folders []string `json:"folders,omitempty"`
+}
+
+// filterScopedChildren keeps only entries that are inside an assigned scope or
+// lead to one. This prevents a virtual common parent from exposing unrelated
+// sibling departments before the user enters a concrete scope.
+func filterScopedChildren(info *iteminfo.FileInfo, sourcePath, parentPath string, user *users.User) {
+	if info == nil || user == nil {
+		return
+	}
+
+	visibleFiles := info.Files[:0]
+	for _, file := range info.Files {
+		childPath := utils.JoinPathAsUnix(parentPath, file.Name)
+		if user.ScopeContainsOrHasChild(sourcePath, childPath) {
+			visibleFiles = append(visibleFiles, file)
+		}
+	}
+	info.Files = visibleFiles
+
+	visibleFolders := info.Folders[:0]
+	for _, folder := range info.Folders {
+		childPath := utils.JoinPathAsUnix(parentPath, folder.Name)
+		if user.ScopeContainsOrHasChild(sourcePath, childPath) {
+			visibleFolders = append(visibleFolders, folder)
+		}
+	}
+	info.Folders = visibleFolders
 }
 
 // This removes files whose names match any extension in hideFileExt.
@@ -190,7 +263,8 @@ func GetDirItems(opts utils.FileOptions, user *users.User) (Items, error) {
 
 func getDirItemsImpl(opts utils.FileOptions, user *users.User, s *Service) (Items, error) {
 	items := Items{}
-	indexPath, _, topLevelErr := checkPermissionsImpl(opts, user, s)
+	resolved, topLevelErr := resolvePathImpl(opts, user, s)
+	indexPath := resolved.IndexPath
 	accessRulesErr := topLevelErr != nil && topLevelErr == errors.ErrAccessDenied && indexPath != ""
 	if topLevelErr != nil && !accessRulesErr {
 		return items, topLevelErr
@@ -216,6 +290,9 @@ func getDirItemsImpl(opts utils.FileOptions, user *users.User, s *Service) (Item
 	}
 	if err := s.checkChildItemAccess(info, idx, user.Username); err != nil {
 		return items, err
+	}
+	if resolved.Virtual {
+		filterScopedChildren(info, idx.Path, indexPath, user)
 	}
 	hasAccessibleItems := len(info.Files) > 0 || len(info.Folders) > 0
 	if accessRulesErr && !hasAccessibleItems {
@@ -249,7 +326,9 @@ func FileInfoFaster(opts utils.FileOptions, user *users.User) (*iteminfo.Extende
 // fileInfoFasterImpl is the actual implementation of FileInfoFaster
 func fileInfoFasterImpl(opts utils.FileOptions, user *users.User, s *Service) (*iteminfo.ExtendedFileInfo, error) {
 	response := &iteminfo.ExtendedFileInfo{}
-	indexPath, userScope, topLevelErr := checkPermissionsImpl(opts, user, s)
+	resolved, topLevelErr := resolvePathImpl(opts, user, s)
+	indexPath := resolved.IndexPath
+	userScope := resolved.UserScope
 	accessRulesErr := topLevelErr != nil && topLevelErr == errors.ErrAccessDenied && indexPath != ""
 	if topLevelErr != nil && !accessRulesErr {
 		return response, topLevelErr
@@ -276,6 +355,9 @@ func fileInfoFasterImpl(opts utils.FileOptions, user *users.User, s *Service) (*
 	if info.Type == "directory" {
 		if err := s.checkChildItemAccess(info, idx, user.Username); err != nil {
 			return response, err
+		}
+		if resolved.Virtual {
+			filterScopedChildren(info, idx.Path, indexPath, user)
 		}
 	}
 	hasAccessibleItems := len(info.Files) > 0 || len(info.Folders) > 0

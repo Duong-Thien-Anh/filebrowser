@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	libErrors "github.com/gtsteffaniak/filebrowser/backend/internal/errors"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/share"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
+	libErrors "github.com/gtsteffaniak/filebrowser/backend/internal/errors"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing/iteminfo"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
 	"github.com/gtsteffaniak/go-cache/cache"
@@ -50,6 +50,27 @@ func effectiveFilePerms(d *Context, sourceName string) (users.SourceFilePermissi
 		link = &d.Share
 	}
 	return share.EffectiveFilePermissions(d.User, link, sourceName)
+}
+
+// effectiveFilePermsAtPath resolves permissions for the requested path. This
+// matters when one source has multiple department scopes with different write
+// permissions.
+func effectiveFilePermsAtPath(d *Context, sourceName, requestPath string) (users.SourceFilePermissions, error) {
+	if d == nil {
+		return users.DenyAllSourceFilePermissions(), fmt.Errorf("user context not set")
+	}
+	if d.Share.Hash != "" {
+		return d.Share.FilePermissions(), nil
+	}
+	source, ok := users.ResolveSourceKey(sourceName)
+	if !ok {
+		return effectiveFilePerms(d, sourceName)
+	}
+	resolved, err := d.User.ResolveScopeForSourcePath(source.Path, requestPath)
+	if err != nil {
+		return users.DenyAllSourceFilePermissions(), err
+	}
+	return resolved.Permissions, nil
 }
 
 // HttpResponse is the standard JSON error/success envelope.
@@ -112,7 +133,7 @@ var (
 // Per-route-class token buckets (keys: IP or username). Expired entries are dropped by go-cache.
 var (
 	authRateLimitCredentialByIP       = cache.NewCache[*rate.Limiter](authLimiterEntryTTL)
-	authRateLimitCredentialByUsername   = cache.NewCache[*rate.Limiter](authLimiterEntryTTL)
+	authRateLimitCredentialByUsername = cache.NewCache[*rate.Limiter](authLimiterEntryTTL)
 	authRateLimitModerateByIP         = cache.NewCache[*rate.Limiter](authLimiterEntryTTL)
 	authRateLimitOIDCByIP             = cache.NewCache[*rate.Limiter](authLimiterEntryTTL)
 	authRateLimitAuthenticatedByUser  = cache.NewCache[*rate.Limiter](authLimiterEntryTTL)

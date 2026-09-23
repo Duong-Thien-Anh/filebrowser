@@ -13,27 +13,36 @@ test("navigate with hash in file name", async({ page, checkForErrors }) => {
   checkForErrors()
 })
 
-test("breadcrumbs navigation checks", async({ page, checkForErrors }) => {
+test("breadcrumbs display checks", async({ page, checkForErrors }) => {
   await page.goto("/files/playwright%20+%20files/myfolder");
   await page.waitForSelector('#breadcrumbs');
   let spanChildrenCount = await page.locator('#breadcrumbs > ul > li.item').count();
   expect(spanChildrenCount).toBe(1);
-  let breadCrumbLink = page.locator('a[aria-label="breadcrumb-link-myfolder"]')
-  await expect(breadCrumbLink).toHaveText("myfolder");
+  const homeBreadcrumb = page.locator('#breadcrumbs > ul > li:first-child .breadcrumb-link');
+  await expect(homeBreadcrumb).toHaveCount(1);
+  let breadCrumb = page.locator('span.breadcrumb-link[aria-label="breadcrumb-link-myfolder"]')
+  await expect(breadCrumb).toHaveText("myfolder");
+  await expect(page.locator('a[aria-label="breadcrumb-link-myfolder"]')).toHaveCount(0);
+  const currentUrl = page.url();
+  await homeBreadcrumb.click();
+  await breadCrumb.click();
+  await expect(page).toHaveURL(currentUrl);
 
   await page.goto("/files/playwright%20+%20files/myfolder/testdata");
   await page.waitForSelector('#breadcrumbs');
   spanChildrenCount = await page.locator('#breadcrumbs > ul > li.item').count();
   expect(spanChildrenCount).toBe(2);
-  breadCrumbLink = page.locator('a[aria-label="breadcrumb-link-testdata"]')
-  await expect(breadCrumbLink).toHaveText("testdata");
+  breadCrumb = page.locator('span.breadcrumb-link[aria-label="breadcrumb-link-testdata"]')
+  await expect(breadCrumb).toHaveText("testdata");
+  await expect(page.locator('a[aria-label="breadcrumb-link-testdata"]')).toHaveCount(0);
 
   await page.goto("/files/playwright%20+%20files/files");
   await page.waitForSelector('#breadcrumbs');
   spanChildrenCount = await page.locator('#breadcrumbs > ul > li.item').count();
   expect(spanChildrenCount).toBe(1);
-  breadCrumbLink = page.locator('a[aria-label="breadcrumb-link-files"]')
-  await expect(breadCrumbLink).toHaveText("files");
+  breadCrumb = page.locator('span.breadcrumb-link[aria-label="breadcrumb-link-files"]')
+  await expect(breadCrumb).toHaveText("files");
+  await expect(page.locator('a[aria-label="breadcrumb-link-files"]')).toHaveCount(0);
   checkForErrors();
 });
 

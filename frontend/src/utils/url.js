@@ -252,16 +252,16 @@ export function encodedPath(path) {
   return encodedParts.join("/").replace("//", "/");
 }
 
+function normalizedRoutePath(path) {
+  if (!path || path === "/") {
+    return "/";
+  }
+  return path.replace(/\/+$/, "");
+}
+
 // assume non-encoded input path and source
 export function goToItem(source, path, previousHistoryItem, newTab = false, isShare = false) {
   const cv = getters.currentView();
-  if (source === state.sources.current && path === state.req.path && cv === "listingView") {
-    return;
-  }
-  if (previousHistoryItem && cv === "listingView") {
-    mutations.setPreviousHistoryItem(previousHistoryItem);
-  }
-  mutations.resetAll()
   const newPath = encodedPath(path);
   let fullPath;
   if (isShare) {
@@ -269,6 +269,19 @@ export function goToItem(source, path, previousHistoryItem, newTab = false, isSh
   } else {
     fullPath = `/files/${encodeURIComponent(source)}${newPath}`;
   }
+
+  const currentRoutePath = router.currentRoute.value?.path;
+  const sameRoute = currentRoutePath &&
+    normalizedRoutePath(currentRoutePath) === normalizedRoutePath(fullPath);
+  const sameListing = source === state.sources.current && path === state.req.path && cv === "listingView";
+  if (!newTab && (sameRoute || sameListing)) {
+    return;
+  }
+
+  if (previousHistoryItem && cv === "listingView") {
+    mutations.setPreviousHistoryItem(previousHistoryItem);
+  }
+  mutations.resetAll()
   if (newTab) {
     // Use absolute URL for new tab to ensure proper navigation
     const absoluteUrl = `${window.location.origin}${globalVars.baseURL}${fullPath.startsWith('/') ? fullPath.slice(1) : fullPath}`;

@@ -374,7 +374,17 @@ export default {
       if (!this.isLoggedIn) {
         return;
       }
-      this.$router.push('/');
+      const source = getters.isAdmin()
+        ? state.sources.defaultSource || state.sources.current || this.activeSource
+        : state.req?.source || state.sources.current || this.activeSource;
+
+      if (!source) {
+        void this.$router.replace('/files/');
+        return;
+      }
+
+      const path = getters.isAdmin() ? "/" : getters.sourceScope(source);
+      goToItem(source, path, undefined, false, false);
     },
     getDefaultLinks() {
       // Generate default links from sources the user can access.

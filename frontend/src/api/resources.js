@@ -39,7 +39,7 @@ function cacheViewTokenFromListing(data) {
 }
 
 // Notify if errors occur
-export async function fetchFiles(source, path, content = false, metadata = false, skipExtendedAttrs = false) {
+export async function fetchFiles(source, path, content = false, metadata = false, skipExtendedAttrs = false, requestOptions = {}) {
   if (!source || source === undefined || source === null) {
     throw new Error('no source provided')
   }
@@ -51,13 +51,15 @@ export async function fetchFiles(source, path, content = false, metadata = false
       ...(metadata && { metadata: 'true' }),
       ...(skipExtendedAttrs && { skipExtendedAttrs: 'true' })
     })
-    const res = await fetchURL(apiPath)
+    const res = await fetchURL(apiPath, requestOptions)
     const data = await res.json()
     const adjusted = adjustedData(data)
     cacheViewTokenFromListing(adjusted)
     return adjusted
   } catch (err) {
-    notify.showError(err.message || 'Error fetching data')
+    if (err?.name !== "AbortError") {
+      notify.showError(err.message || 'Error fetching data')
+    }
     throw err
   }
 }
@@ -1070,7 +1072,7 @@ function sharePublicAuthHeaders(hash) {
  * @param {boolean} metadata
  * @returns {Promise<any>}
  */
-export async function fetchFilesPublic(path, hash, password = "", content = false, metadata = false, skipExtendedAttrs = false) {
+export async function fetchFilesPublic(path, hash, password = "", content = false, metadata = false, skipExtendedAttrs = false, requestOptions = {}) {
   const params = {
     path: path,
     hash,
@@ -1081,8 +1083,10 @@ export async function fetchFilesPublic(path, hash, password = "", content = fals
   }
   const apiPath = getPublicApiPath("resources", params);
   const response = await fetch(apiPath, {
+    ...requestOptions,
     headers: {
       "X-SHARE-PASSWORD": password || "",
+      ...requestOptions.headers,
     },
   });
 

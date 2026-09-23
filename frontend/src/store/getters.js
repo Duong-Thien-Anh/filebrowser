@@ -648,18 +648,24 @@ export const getters = {
     if (!activeSource || !Array.isArray(state.user?.scopes)) {
       return denyFile;
     }
-    const scopeEntry = state.user.scopes.find((entry) => entry?.name === activeSource);
-    return scopeEntry?.permissions ?? denyFile;
+    const scopeEntries = state.user.scopes.filter((entry) => entry?.name === activeSource);
+    if (scopeEntries.length === 0) {
+      return denyFile;
+    }
+
+    const requestPath = state.req?.source === activeSource && typeof state.req?.path === "string"
+      ? state.req.path
+      : commonScopePath(scopeEntries);
+    return permissionsForScopePath(scopeEntries, requestPath, denyFile);
   },
   sourceScope: (source) => {
     const activeSource =
       source ?? state.req?.source ?? state.sources?.current ?? "";
-    const scope = state.user?.scopes?.find((entry) => entry?.name === activeSource)?.scope;
-    if (typeof scope !== "string" || scope.trim() === "") {
+    const scopeEntries = (state.user?.scopes ?? []).filter((entry) => entry?.name === activeSource);
+    if (scopeEntries.length === 0) {
       return "/";
     }
-    const normalizedScope = scope.startsWith("/") ? scope : `/${scope}`;
-    return normalizedScope.length > 1 ? normalizedScope.replace(/\/+$/, "") : "/";
+    return commonScopePath(scopeEntries);
   },
   /** Whether the current user may create files/folders in the given source (share-aware). */
   canCreateInSource: (source) => {
@@ -711,3 +717,68 @@ export const getters = {
     };
   }
 };
+
+function normalizeScopePath(scope) {
+  if (typeof scope !== "string" || scope.trim() === "") {
+    return "/";
+  }
+  const normalized = scope.startsWith("/") ? scope : `/${scope}`;
+  return normalized.length > 1 ? normalized.replace(/\/+$/, "") : "/";
+}
+
+function pathContains(base, candidate) {
+  const normalizedBase = normalizeScopePath(base);
+  const normalizedCandidate = normalizeScopePath(candidate);
+  return normalizedBase === "/"
+    || normalizedCandidate === normalizedBase
+    || normalizedCandidate.startsWith(`${normalizedBase}/`);
+}
+
+function commonScopePath(scopeEntries) {
+  const paths = scopeEntries
+    .map((entry) => normalizeScopePath(entry?.scope))
+    .filter((scope) => scope !== "/");
+
+  if (paths.length === 0) {
+    return "/";
+  }
+
+  const common = paths[0].split("/").filter(Boolean);
+  for (const path of paths.slice(1)) {
+    const current = path.split("/").filter(Boolean);
+    let length = Math.min(common.length, current.length);
+    for (let index = 0; index < length; index += 1) {
+      if (common[index] !== current[index]) {
+        length = index;
+        break;
+      }
+    }
+    common.splice(length);
+  }
+
+  return common.length > 0 ? `/${common.join("/")}` : "/";
+}
+
+function permissionsForScopePath(scopeEntries, requestPath, denyFile) {
+  const normalizedRequest = normalizeScopePath(requestPath);
+  const matching = scopeEntries
+    .filter((entry) => pathContains(entry?.scope, normalizedRequest))
+    .sort((left, right) => normalizeScopePath(right?.scope).length - normalizeScopePath(left?.scope).length);
+
+  if (matching.length > 0) {
+    return matching[0]?.permissions ?? denyFile;
+  }
+
+  const descendants = scopeEntries.filter((entry) => pathContains(normalizedRequest, entry?.scope));
+  if (descendants.length === 0) {
+    return denyFile;
+  }
+
+  return {
+    view: descendants.every((entry) => entry?.permissions?.view !== false),
+    download: descendants.every((entry) => entry?.permissions?.download !== false),
+    modify: false,
+    create: false,
+    delete: false,
+  };
+}

@@ -2,32 +2,32 @@
   <div v-if="items.length > 0" id="breadcrumbs">
     <ul>
       <li>
-        <router-link :to="homeLink.url" :aria-label="$t('general.home')" :title="$t('general.home')"
+        <span class="breadcrumb-link" :aria-label="$t('general.home')" :title="$t('general.home')"
+          aria-disabled="true"
           :class="{ 'droppable-breadcrumb': isDroppable, 'drag-over': dragOverItem?.type === 'home' }"
-          @click.prevent="navigateToBreadcrumb(homeLink)"
           @dragenter.prevent="dragEnter($event, homeLink)"
           @dragleave.prevent="dragLeave($event, homeLink)"
           @dragover.prevent="dragOver($event, homeLink)"
           @drop.prevent="drop($event, homeLink)">
           <i class="material-symbols">home</i>
-        </router-link>
+        </span>
       </li>
       <li class="item" v-for="(link, index) in items" :key="index">
-        <router-link
-          :to="link.url"
+        <span
+          class="breadcrumb-link"
           :aria-label="`breadcrumb-link-${link.name}`"
           :title="link.name"
+          aria-disabled="true"
           :key="index"
           :class="{ changeAvailable: hasUpdate,
             'droppable-breadcrumb': isDroppable && link.type !== 'truncated',
             'drag-over': dragOverItem?.path === link.path, }"
-          @click.prevent="navigateToBreadcrumb(link)"
           @dragenter="dragEnter($event, link)"
           @dragleave="dragLeave($event, link)"
           @dragover="dragOver($event, link)"
           @drop="drop($event, link)">
           <span class="breadcrumb-text">{{ link.name }}</span>
-        </router-link>
+        </span>
       </li>
     </ul>
   </div>
@@ -156,27 +156,6 @@ export default {
           ? `${url.buildItemUrl(source, getters.sourceScope(source))}/`
           : "/files/";
       }
-    },
-
-    navigateToBreadcrumb(link) {
-      const isShare = getters.isShare();
-      const source = isShare
-        ? state.shareInfo?.hash
-        : link.source || state.req?.source || state.sources.current;
-
-      if (!source) {
-        return;
-      }
-
-      const path = link.type === "home"
-        ? (isShare ? "/" : getters.sourceScope(source))
-        : link.path;
-
-      if (!path) {
-        return;
-      }
-
-      url.goToItem(source, path, undefined, false, isShare);
     },
 
     dragEnter(event, link) {
@@ -386,7 +365,7 @@ export default {
   position: relative;
 }
 
-#breadcrumbs ul li a {
+#breadcrumbs ul li .breadcrumb-link {
   display: flex;
   height: 0.85em;
   background: var(--surfacePrimary);
@@ -413,16 +392,17 @@ export default {
     1.275em 50%);
   margin-right: -0.85em;
   border: 1px solid rgba(0, 0, 0, 0.1);
+  cursor: default;
 }
 
-#breadcrumbs ul li a .breadcrumb-text {
+#breadcrumbs ul li .breadcrumb-link .breadcrumb-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
 }
 
-#breadcrumbs ul li:first-child a {
+#breadcrumbs ul li:first-child .breadcrumb-link {
   border-top-left-radius: 0.85em;
   border-bottom-left-radius: 0.85em;
   clip-path: polygon(
@@ -434,7 +414,7 @@ export default {
   padding-left: 1.1em;
 }
 
-#breadcrumbs ul li:last-child a {
+#breadcrumbs ul li:last-child .breadcrumb-link {
   padding-right: 1.275em;
   border-top-right-radius: 0.85em;
   border-bottom-right-radius: 0.85em;
@@ -447,12 +427,7 @@ export default {
   margin-right: 0;
 }
 
-#breadcrumbs ul li a:hover {
-  background: var(--primaryColor);
-  color: white;
-}
-
-#breadcrumbs ul li:last-child a.changeAvailable {
+#breadcrumbs ul li:last-child .breadcrumb-link.changeAvailable {
   filter: contrast(0.8) hue-rotate(200deg) saturate(1);
 }
 

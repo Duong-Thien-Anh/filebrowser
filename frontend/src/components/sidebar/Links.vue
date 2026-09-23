@@ -6,7 +6,9 @@
       :class="{ 'with-top-spacing': isShare && !disableShareCard }">
       <i :class="{ 'disabled': !isLoggedIn }"
         aria-label="Navigate Home"
-        @click="goHome()" class="material-symbols action">home</i>
+        aria-disabled="true"
+        title="Home"
+        class="material-symbols action display-only">home</i>
       <!-- Mode button (is the title) -->
       <button type="button" @click="cycleMode" class="mode-toggle" @mouseenter="showTooltip($event, $t('sidebar.switchMode'))" @mouseleave="hideTooltip">
         {{ mode === 'links' ? $t('general.links') : $t('general.navigation') }}
@@ -370,22 +372,6 @@ export default {
       const target = fullPath.startsWith('/') ? fullPath.substring(1) : fullPath;
       return baseURL + target;
     },
-    goHome() {
-      if (!this.isLoggedIn) {
-        return;
-      }
-      const source = getters.isAdmin()
-        ? state.sources.defaultSource || state.sources.current || this.activeSource
-        : state.req?.source || state.sources.current || this.activeSource;
-
-      if (!source) {
-        void this.$router.replace('/files/');
-        return;
-      }
-
-      const path = getters.isAdmin() ? "/" : getters.sourceScope(source);
-      goToItem(source, path, undefined, false, false);
-    },
     getDefaultLinks() {
       // Generate default links from sources the user can access.
       const defaultLinks = [];
@@ -733,6 +719,15 @@ export default {
 
 .sidebar-links-header .material-symbols.action:hover {
   background: var(--surfaceSecondary);
+}
+
+.sidebar-links-header .material-symbols.action.display-only {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.sidebar-links-header .material-symbols.action.display-only:hover {
+  background: transparent;
 }
 
 .sidebar-links-header .mode-toggle {

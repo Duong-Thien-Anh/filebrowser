@@ -653,9 +653,7 @@ export const getters = {
       return denyFile;
     }
 
-    const requestPath = state.req?.source === activeSource && typeof state.req?.path === "string"
-      ? state.req.path
-      : commonScopePath(scopeEntries);
+    const requestPath = requestPathForSource(activeSource, scopeEntries);
     return permissionsForScopePath(scopeEntries, requestPath, denyFile);
   },
   sourceScope: (source) => {
@@ -757,6 +755,27 @@ function commonScopePath(scopeEntries) {
   }
 
   return common.length > 0 ? `/${common.join("/")}` : "/";
+}
+
+function requestPathForSource(source, scopeEntries) {
+  const routePath = state.route?.path;
+  if (typeof routePath === "string" && routePath.startsWith("/files/")) {
+    try {
+      const route = url.extractSourceFromPath(routePath);
+      const routeSource = decodeURIComponent(route.source);
+      if (routeSource === source) {
+        return normalizeScopePath(decodeURIComponent(route.path || "/"));
+      }
+    } catch {
+      // Fall back to the request state when the browser URL is malformed.
+    }
+  }
+
+  if (state.req?.source === source && typeof state.req?.path === "string") {
+    return normalizeScopePath(state.req.path);
+  }
+
+  return commonScopePath(scopeEntries);
 }
 
 function permissionsForScopePath(scopeEntries, requestPath, denyFile) {

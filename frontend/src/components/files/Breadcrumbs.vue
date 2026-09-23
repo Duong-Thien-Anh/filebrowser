@@ -4,6 +4,7 @@
       <li>
         <router-link :to="homeLink.url" :aria-label="$t('general.home')" :title="$t('general.home')"
           :class="{ 'droppable-breadcrumb': isDroppable, 'drag-over': dragOverItem?.type === 'home' }"
+          @click.prevent="navigateToBreadcrumb(homeLink)"
           @dragenter.prevent="dragEnter($event, homeLink)"
           @dragleave.prevent="dragLeave($event, homeLink)"
           @dragover.prevent="dragOver($event, homeLink)"
@@ -20,6 +21,7 @@
           :class="{ changeAvailable: hasUpdate,
             'droppable-breadcrumb': isDroppable && link.type !== 'truncated',
             'drag-over': dragOverItem?.path === link.path, }"
+          @click.prevent="navigateToBreadcrumb(link)"
           @dragenter="dragEnter($event, link)"
           @dragleave="dragLeave($event, link)"
           @dragover="dragOver($event, link)"
@@ -154,6 +156,27 @@ export default {
           ? `${url.buildItemUrl(source, getters.sourceScope(source))}/`
           : "/files/";
       }
+    },
+
+    navigateToBreadcrumb(link) {
+      const isShare = getters.isShare();
+      const source = isShare
+        ? state.shareInfo?.hash
+        : link.source || state.req?.source || state.sources.current;
+
+      if (!source) {
+        return;
+      }
+
+      const path = link.type === "home"
+        ? (isShare ? "/" : getters.sourceScope(source))
+        : link.path;
+
+      if (!path) {
+        return;
+      }
+
+      url.goToItem(source, path, undefined, false, isShare);
     },
 
     dragEnter(event, link) {

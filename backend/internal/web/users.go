@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
-	"github.com/gtsteffaniak/filebrowser/backend/internal/adapters/fs/files"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/activity"
+	"github.com/gtsteffaniak/filebrowser/backend/internal/adapters/fs/files"
 	"io"
 	"net/http"
 	"net/url"
@@ -19,9 +19,8 @@ import (
 	"github.com/gtsteffaniak/filebrowser/backend/internal/state"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/usersidebar"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
-	"github.com/gtsteffaniak/go-logger/logger"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
-
+	"github.com/gtsteffaniak/go-logger/logger"
 )
 
 type UserRequest struct {
@@ -301,6 +300,16 @@ func userPutOnlyNonAdminEditableFields(which []string) bool {
 // verifyActorPasswordForUserPut requires URL-encoded X-Password when the authenticated actor uses
 // password login. Callers should invoke this only when the update requires re-authentication.
 func verifyActorPasswordForUserActions(r *http.Request, d *Context) (int, error) {
+	// A valid Bearer admin token already proves possession of the configured
+	// administrative credential. Automation clients such as Auth Service do
+	// not have the local admin password, so do not require a second password
+	// confirmation for this authentication path. Browser/password sessions
+	// continue through the confirmation check below.
+	if d != nil && d.User != nil && d.User.Permissions.Admin && d.Token != "" &&
+		strings.TrimSpace(r.Header.Get("Authorization")) != "" {
+		return 0, nil
+	}
+
 	if d.User.LoginMethod != users.LoginMethodPassword {
 		return 0, nil
 	}

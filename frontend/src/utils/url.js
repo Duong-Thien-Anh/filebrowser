@@ -15,6 +15,7 @@ export default {
   extractSourceFromPath,
   base64Encode,
   joinPath,
+  resolveListingPath,
   goToItem,
   buildItemUrl,
   encodedPath,
@@ -172,6 +173,29 @@ export function joinPath(basePath, ...segments) {
     }
   }
   return result;
+}
+
+/**
+ * Normalize an item path returned by a scoped source listing.
+ *
+ * FileBrowser may return child entries relative to the source scope (for
+ * example `/SGAT - Data Chung`) even while the listing is browsing a nested
+ * path (`/Sài Gòn An Thái`). Navigation must keep the complete logical path.
+ */
+export function resolveListingPath(basePath, itemPath) {
+  const base = basePath && basePath !== "/" ? removeTrailingSlash(basePath) : "/";
+  const item = typeof itemPath === "string" && itemPath.length > 0 ? itemPath : "/";
+
+  if (base === "/") {
+    return item.startsWith("/") ? item : `/${item}`;
+  }
+
+  const normalizedItem = removeTrailingSlash(item);
+  if (normalizedItem === base || normalizedItem.startsWith(`${base}/`)) {
+    return item.startsWith("/") ? item : `/${item}`;
+  }
+
+  return joinPath(base, item);
 }
 
 /** Resolve a relative or root-relative path against a base file path (POSIX-style). */

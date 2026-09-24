@@ -325,7 +325,7 @@ export default {
           if (item.type !== "directory" && !this.isFileTypeAllowed(item.type)) continue;
           entries.push({
             name: item.name,
-            path: item.path,
+            path: url.resolveListingPath(this.path, item.path),
             source: item.source || req.source,
             type: item.type,
             pinned: !!item.pinned,

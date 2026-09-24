@@ -40,7 +40,7 @@ vi.mock('@/utils/constants', () => {
   };
 });
 
-import { extractSourceFromPath, getApiPath, getPublicApiPath, removePrefix } from './url.js';
+import { extractSourceFromPath, getApiPath, getPublicApiPath, removePrefix, resolveListingPath } from './url.js';
 
 describe('testurl', () => {
 
@@ -131,5 +131,21 @@ describe('extractSourceFromPath', () => {
       expect(result.source).toEqual(test.expected.source);
       expect(result.path).toEqual(test.expected.path);
     }
+  });
+});
+
+describe('resolveListingPath', () => {
+  it('keeps a full child path unchanged', () => {
+    expect(resolveListingPath('/Sài Gòn An Thái', '/Sài Gòn An Thái/SGAT - Data Chung'))
+      .toBe('/Sài Gòn An Thái/SGAT - Data Chung');
+  });
+
+  it('restores the parent when a scoped API returns a relative child path', () => {
+    expect(resolveListingPath('/Sài Gòn An Thái', '/SGAT - Data Chung'))
+      .toBe('/Sài Gòn An Thái/SGAT - Data Chung');
+  });
+
+  it('does not add a parent at the source root', () => {
+    expect(resolveListingPath('/', '/Sài Gòn An Thái')).toBe('/Sài Gòn An Thái');
   });
 });

@@ -195,6 +195,25 @@ export function resolveListingPath(basePath, itemPath) {
     return item.startsWith("/") ? item : `/${item}`;
   }
 
+  // Some scoped listings return paths relative to the source scope rather
+  // than relative to the current listing. If the item starts with a suffix
+  // of the current path, keep that suffix only once when rebuilding it.
+  const baseParts = base.split("/").filter(Boolean);
+  const itemParts = normalizedItem.split("/").filter(Boolean);
+  const maxOverlap = Math.min(baseParts.length, itemParts.length);
+  for (let overlap = maxOverlap; overlap > 0; overlap -= 1) {
+    const baseSuffix = baseParts.slice(-overlap);
+    const itemPrefix = itemParts.slice(0, overlap);
+    if (baseSuffix.join("/") === itemPrefix.join("/")) {
+      const mergedParts = [
+        ...baseParts.slice(0, -overlap),
+        ...itemParts,
+      ];
+      const merged = `/${mergedParts.join("/")}`;
+      return item.endsWith("/") ? `${merged}/` : merged;
+    }
+  }
+
   return joinPath(base, item);
 }
 

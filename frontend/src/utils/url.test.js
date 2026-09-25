@@ -145,6 +145,13 @@ describe('resolveListingPath', () => {
       .toBe('/Sài Gòn An Thái/SGAT - Data Chung');
   });
 
+  it('does not duplicate an overlapping scope segment', () => {
+    expect(resolveListingPath(
+      '/Sài Gòn An Thái/Nhân viên SGAT',
+      '/Nhân viên SGAT/NV Marketing/',
+    )).toBe('/Sài Gòn An Thái/Nhân viên SGAT/NV Marketing/');
+  });
+
   it('does not add a parent at the source root', () => {
     expect(resolveListingPath('/', '/Sài Gòn An Thái')).toBe('/Sài Gòn An Thái');
   });

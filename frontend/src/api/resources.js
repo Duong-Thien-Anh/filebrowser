@@ -7,7 +7,7 @@ import {
   notifyDownloadError,
 } from '@/utils/appNotifications'
 import { getApiPath, getPublicApiPath, getParentDir } from '@/utils/url.js'
-import { adjustedData, fetchURL } from './utils'
+import { adjustedData, fetchURL, normalizeListingItemPaths } from './utils'
 import { rememberViewToken } from './viewToken'
 import { isMediaFile } from '@/utils/mediaFile'
 import { getObjectProperty } from '@/utils/object'
@@ -53,7 +53,7 @@ export async function fetchFiles(source, path, content = false, metadata = false
     })
     const res = await fetchURL(apiPath, requestOptions)
     const data = await res.json()
-    const adjusted = adjustedData(data)
+    const adjusted = normalizeListingItemPaths(adjustedData(data), path)
     cacheViewTokenFromListing(adjusted)
     return adjusted
   } catch (err) {

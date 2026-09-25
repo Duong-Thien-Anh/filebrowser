@@ -1,6 +1,7 @@
 import i18n from "@/i18n";
 import { getters, state } from "@/store";
 import { renew } from "@/utils/auth";
+import { resolveListingPath } from "@/utils/url.js";
 
 function isPublicApiUrl(url) {
   return typeof url === "string" && url.includes("public/api/");
@@ -120,5 +121,26 @@ export function adjustedData(data) {
     data.folders = []
   }
   return data;
+}
+
+/**
+ * Keep logical parent paths when a scoped source returns relative item paths.
+ *
+ * The resources endpoint can report a child as `/Child` while the request was
+ * made for `/Parent`. Navigation must use the request path as the logical
+ * base, otherwise the next request escapes the user's FileBrowser scope.
+ */
+export function normalizeListingItemPaths(data, listingPath) {
+  if (data?.type !== "directory" || !Array.isArray(data.items)) {
+    return data;
+  }
+
+  return {
+    ...data,
+    items: data.items.map((item) => ({
+      ...item,
+      path: resolveListingPath(listingPath, item.path),
+    })),
+  };
 }
 

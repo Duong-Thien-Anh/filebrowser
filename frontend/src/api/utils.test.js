@@ -32,7 +32,7 @@ vi.mock('@/utils/constants', () => {
   };
 });
 
-import { adjustedData } from './utils.js';
+import { adjustedData, normalizeListingItemPaths } from './utils.js';
 
 describe('adjustedData', () => {
   it('should append the URL and process directory data correctly', () => {
@@ -128,4 +128,26 @@ describe('adjustedData', () => {
     ]);
   });
 
+});
+
+describe('normalizeListingItemPaths', () => {
+  it('restores the request parent for scope-relative children', () => {
+    const listing = {
+      type: "directory",
+      items: [{ name: "Nhân viên SGAT", path: "/Nhân viên SGAT/", type: "directory" }],
+    };
+
+    expect(normalizeListingItemPaths(listing, "/Sài Gòn An Thái").items[0].path)
+      .toBe("/Sài Gòn An Thái/Nhân viên SGAT/");
+  });
+
+  it('preserves an item path that is already complete', () => {
+    const listing = {
+      type: "directory",
+      items: [{ name: "Marketing", path: "/Sài Gòn An Thái/Marketing/", type: "directory" }],
+    };
+
+    expect(normalizeListingItemPaths(listing, "/Sài Gòn An Thái").items[0].path)
+      .toBe("/Sài Gòn An Thái/Marketing/");
+  });
 });

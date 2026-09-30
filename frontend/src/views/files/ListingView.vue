@@ -1014,7 +1014,7 @@ export default {
           event.preventDefault();
           event.stopPropagation();
 
-          const canUpload = getters.sourcePermissions()?.modify;
+          const canUpload = getters.canCreateInSource();
           if (canUpload) {
             // Pass the full array of {file, relativePath} to preserve directory structure
             mutations.showPrompt({
@@ -1238,6 +1238,10 @@ export default {
       // If we're already in the embedded upload view, don't open a new prompt
       // The embedded Upload component will handle its own drops
       if (state.shareInfo?.shareType === 'upload') {
+        return;
+      }
+
+      if (!getters.canCreateInSource()) {
         return;
       }
 

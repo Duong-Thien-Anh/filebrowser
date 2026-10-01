@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/gtsteffaniak/filebrowser/backend/internal/adapters/fs/files"
 	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
 	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
-
 )
 
 func viewFilesHandler(w http.ResponseWriter, r *http.Request, d *Context, source string, scopedFileList []string) (int, error) {
@@ -59,12 +59,17 @@ func viewHandler(w http.ResponseWriter, r *http.Request, d *Context) (int, error
 		return http.StatusForbidden, err
 	}
 
-	userscope, err := d.User.GetScopeForSourceName(source)
+	resolved, err := files.ResolvePath(utils.FileOptions{
+		Path:   cleanPath,
+		Source: source,
+	}, d.User)
 	if err != nil {
 		return http.StatusForbidden, err
 	}
-	scopedPath := utils.JoinPathAsUnix(userscope, cleanPath)
-	return viewFilesHandler(w, r, d, source, []string{scopedPath})
+	if !resolved.Permissions.View {
+		return http.StatusForbidden, fmt.Errorf("user is not allowed to view files in this source")
+	}
+	return viewFilesHandler(w, r, d, source, []string{resolved.IndexPath})
 }
 
 // publicViewHandler serves inline file content from a public share with a valid viewToken.

@@ -131,12 +131,25 @@ export function adjustedData(data) {
  * base, otherwise the next request escapes the user's FileBrowser scope.
  */
 export function normalizeListingItemPaths(data, listingPath) {
-  if (data?.type !== "directory" || !Array.isArray(data.items)) {
+  if (!data || typeof listingPath !== "string" || listingPath === "") {
     return data;
   }
 
-  return {
+  // FileInfoFaster intentionally strips the user's effective scope from the
+  // response path. Keep the path used for the request as the canonical client
+  // path so preview/view/download requests do not send a scope-relative path
+  // back to a source that has multiple assigned scopes.
+  const normalizedData = {
     ...data,
+    path: listingPath,
+  };
+
+  if (data.type !== "directory" || !Array.isArray(data.items)) {
+    return normalizedData;
+  }
+
+  return {
+    ...normalizedData,
     items: data.items.map((item) => ({
       ...item,
       path: resolveListingPath(listingPath, item.path),

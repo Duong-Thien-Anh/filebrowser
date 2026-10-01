@@ -131,6 +131,30 @@ describe('adjustedData', () => {
 });
 
 describe('normalizeListingItemPaths', () => {
+  it('restores the logical path for a scoped file response', () => {
+    const file = {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      path: "/BaoCao_ThuVienDuLieuAnThai.docx",
+      name: "BaoCao_ThuVienDuLieuAnThai.docx",
+    };
+
+    expect(normalizeListingItemPaths(file, "/Thiên Anh/BaoCao_ThuVienDuLieuAnThai.docx").path)
+      .toBe("/Thiên Anh/BaoCao_ThuVienDuLieuAnThai.docx");
+  });
+
+  it('restores the logical directory path before building child paths', () => {
+    const directory = {
+      type: "directory",
+      path: "/",
+      items: [{ name: "BaoCao", path: "/BaoCao/", type: "directory" }],
+    };
+
+    const result = normalizeListingItemPaths(directory, "/Thiên Anh");
+
+    expect(result.path).toBe("/Thiên Anh");
+    expect(result.items[0].path).toBe("/Thiên Anh/BaoCao/");
+  });
+
   it('restores the request parent for scope-relative children', () => {
     const listing = {
       type: "directory",

@@ -69,7 +69,7 @@ class UploadManager {
     this.onConflict = handler;
   }
 
-  async add(basePath, items, overwrite = false) {
+  async add(basePath, items, overwrite = false, source = state.req?.source) {
     // Handle undefined/null basePath
     if (!basePath) {
       basePath = "/";
@@ -104,7 +104,7 @@ class UploadManager {
                 if (getters.isShare()) {
                   await resourcesApi.postPublic(state.shareInfo?.hash, testPath, new Blob([]), false, undefined, {}, true);
                 } else {
-                  await resourcesApi.post(state.req?.source, testPath, new Blob([]), false, undefined, {}, true);
+                  await resourcesApi.post(source, testPath, new Blob([]), false, undefined, {}, true);
                 }
                 // No conflict - directory was created successfully
                 // Mark it so we can skip it later in the queue
@@ -139,11 +139,11 @@ class UploadManager {
             if (resolution === true) {
               // User chose overwrite - set the flag and add with overwrite=true
               this.overwriteAll = true;
-              void this.add(basePath, items, true);
+              void this.add(basePath, items, true, source);
             } else if (resolution?.rename) {
               // User chose rename - continue with renamed items
               this.conflictingFolder = null;
-              void this.add(basePath, this.pendingItems, false);
+              void this.add(basePath, this.pendingItems, false, source);
             } else {
               // User cancelled
               this.overwriteAll = null;
@@ -197,7 +197,7 @@ class UploadManager {
           type: "directory",
           isToplevelDir: pathParts.length === 1,
           path: `${basePath}${dir}`,
-          source: state.req.source,
+          source,
           overwrite: effectiveOverwrite,
         };
 
@@ -220,7 +220,7 @@ class UploadManager {
         status: "pending", // pending, uploading, paused, completed, error
         xhr: null,
         path: destinationPath, // Full destination path
-        source: state.req.source,
+        source,
         overwrite: effectiveOverwrite,
         lastProgressTime: null, // Track when progress was last updated
         connectionIssue: false, // Flag for connection-related issues

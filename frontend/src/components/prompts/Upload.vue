@@ -215,6 +215,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { readAllDirectoryEntries, uploadManager } from "@/utils/upload";
 import { mutations, state } from "@/store";
+import { url } from "@/utils";
 import { notify } from "@/notify";
 import ProgressBar from "@/components/ProgressBar.vue";
 import SettingsItem from "@/components/settings/SettingsItem.vue";
@@ -457,8 +458,15 @@ export default {
       }
     };
 
-    // Helper to get the destination path (from prop or fallback to current request)
-    const getDestinationPath = () => props.targetPath || state.req.path;
+    // Always anchor mutations to the logical listing path. Scoped API listings
+    // may expose child paths relative to the source root.
+    const getTargetSource = () => props.targetSource || state.req?.source;
+
+    const getDestinationPath = () => {
+      const source = getTargetSource();
+      const currentPath = url.currentListingPath(source, state.req?.path || "/");
+      return url.resolveListingPath(currentPath, props.targetPath || currentPath);
+    };
 
     const processItems = async (items) => {
       const destination = getDestinationPath();
@@ -476,7 +484,7 @@ export default {
           await processDroppedItems(items, destination);
         } else if (first.file instanceof File && typeof first.relativePath === 'string') {
           // This is an array of objects {file, relativePath} for paste from clipboard OS.
-          void uploadManager.add(destination, items);
+          void uploadManager.add(destination, items, false, getTargetSource());
         }
       } else if (items) {
         // This case handles a FileList object from the upload prompt's own input fields.
@@ -598,7 +606,7 @@ export default {
       allFiles.forEach(files => { filesToUpload.push(...files); });
 
       if (filesToUpload.length > 0) {
-        void uploadManager.add(destination, filesToUpload);
+        void uploadManager.add(destination, filesToUpload, false, getTargetSource());
       }
     };
 
@@ -608,7 +616,7 @@ export default {
         relativePath: file.webkitRelativePath || file.name,
       }));
       if (filesToAdd.length > 0) {
-        void uploadManager.add(destination, filesToAdd);
+        void uploadManager.add(destination, filesToAdd, false, getTargetSource());
       }
     };
 

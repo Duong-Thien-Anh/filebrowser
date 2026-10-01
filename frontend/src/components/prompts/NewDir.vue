@@ -83,7 +83,7 @@ export default {
       }
       // Fallback to current path
       return {
-        path: state.req?.path,
+        path: url.currentListingPath(state.req?.source, state.req?.path),
         source: state.req?.source || null,
       };
     },

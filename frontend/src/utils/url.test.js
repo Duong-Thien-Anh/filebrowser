@@ -155,4 +155,14 @@ describe('resolveListingPath', () => {
   it('does not add a parent at the source root', () => {
     expect(resolveListingPath('/', '/Sài Gòn An Thái')).toBe('/Sài Gòn An Thái');
   });
+
+  it('anchors a root-relative mutation path to the active scoped directory', () => {
+    expect(resolveListingPath('/Thiên Anh', '/BaoCao_ThuVienDuLieuAnThai.docx'))
+      .toBe('/Thiên Anh/BaoCao_ThuVienDuLieuAnThai.docx');
+  });
+
+  it('does not duplicate an already complete mutation path', () => {
+    expect(resolveListingPath('/Thiên Anh', '/Thiên Anh/BaoCao_ThuVienDuLieuAnThai.docx'))
+      .toBe('/Thiên Anh/BaoCao_ThuVienDuLieuAnThai.docx');
+  });
 });

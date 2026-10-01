@@ -16,6 +16,7 @@ export default {
   base64Encode,
   joinPath,
   resolveListingPath,
+  currentListingPath,
   goToItem,
   buildItemUrl,
   encodedPath,
@@ -215,6 +216,45 @@ export function resolveListingPath(basePath, itemPath) {
   }
 
   return joinPath(base, item);
+}
+
+/**
+ * Resolve the logical directory currently being browsed for a source.
+ *
+ * Scoped listings can be rendered from the source root while the browser
+ * route/request points at the user's effective scope. Mutations must use the
+ * logical path, otherwise `/report.docx` is sent to the workspace root.
+ */
+export function currentListingPath(source, fallback = "/") {
+  const requestPath = state.req?.source === source && typeof state.req?.path === "string"
+    ? state.req.path
+    : "";
+
+  const routePath = state.route?.path;
+  if (typeof routePath === "string" && routePath.startsWith("/files/")) {
+    try {
+      const route = extractSourceFromPath(routePath);
+      const routeSource = decodeURIComponent(route.source);
+      if (routeSource === source) {
+        const logicalPath = decodeURIComponent(route.path || "/");
+        if (logicalPath !== "/") {
+          return logicalPath;
+        }
+        if (requestPath && requestPath !== "/") {
+          return requestPath;
+        }
+        return getters.sourceScope(source) || "/";
+      }
+    } catch {
+      // Fall back to the request state when the browser URL is malformed.
+    }
+  }
+
+  if (requestPath && requestPath !== "/") {
+    return requestPath;
+  }
+
+  return getters.sourceScope(source) || fallback || "/";
 }
 
 /** Resolve a relative or root-relative path against a base file path (POSIX-style). */

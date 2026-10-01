@@ -1021,7 +1021,8 @@ export default {
               name: "upload",
               props: {
                 initialItems: itemsFromClipboard,
-                targetPath: state.req.path,
+                targetPath: url.currentListingPath(state.req.source, state.req.path),
+                targetSource: state.req.source,
               },
             });
           }
@@ -1250,6 +1251,8 @@ export default {
           name: "upload",
           props: {
             initialItems: Array.from(event.dataTransfer.items),
+            targetPath: url.currentListingPath(state.req.source, state.req.path),
+            targetSource: state.req.source,
           },
         });
       } else {
@@ -1264,6 +1267,8 @@ export default {
           props: {
             // we send it as an array-like object so that it can be processed like a FileList by the Upload component
             initialItems: Array.from(files),
+            targetPath: url.currentListingPath(state.req.source, state.req.path),
+            targetSource: state.req.source,
           },
         });
       }

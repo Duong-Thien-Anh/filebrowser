@@ -25,6 +25,8 @@ test("breadcrumbs display checks", async({ page, checkForErrors }) => {
   await expect(page.locator('a[aria-label="breadcrumb-link-myfolder"]')).toHaveCount(0);
   const currentUrl = page.url();
   await homeBreadcrumb.click();
+  await expect(page).toHaveURL(/\/files\/playwright%20\+\sfiles\/?$/);
+  await page.goto(currentUrl);
   await breadCrumb.click();
   await expect(page).toHaveURL(currentUrl);
 

@@ -3,8 +3,11 @@
     <ul>
       <li>
         <span class="breadcrumb-link" :aria-label="$t('general.home')" :title="$t('general.home')"
-          aria-disabled="true"
+          role="link"
+          tabindex="0"
           :class="{ 'droppable-breadcrumb': isDroppable, 'drag-over': dragOverItem?.type === 'home' }"
+          @click.prevent="navigateToBreadcrumb(homeLink)"
+          @keydown.enter.prevent="navigateToBreadcrumb(homeLink)"
           @dragenter.prevent="dragEnter($event, homeLink)"
           @dragleave.prevent="dragLeave($event, homeLink)"
           @dragover.prevent="dragOver($event, homeLink)"
@@ -17,11 +20,14 @@
           class="breadcrumb-link"
           :aria-label="`breadcrumb-link-${link.name}`"
           :title="link.name"
-          aria-disabled="true"
+          role="link"
+          tabindex="0"
           :key="index"
           :class="{ changeAvailable: hasUpdate,
             'droppable-breadcrumb': isDroppable && link.type !== 'truncated',
             'drag-over': dragOverItem?.path === link.path, }"
+          @click.prevent="navigateToBreadcrumb(link)"
+          @keydown.enter.prevent="navigateToBreadcrumb(link)"
           @dragenter="dragEnter($event, link)"
           @dragleave="dragLeave($event, link)"
           @dragover="dragOver($event, link)"
@@ -156,6 +162,29 @@ export default {
           ? `${url.buildItemUrl(source, getters.sourceScope(source))}/`
           : "/files/";
       }
+    },
+
+    navigateToBreadcrumb(link) {
+      // The truncated breadcrumb is only a visual indicator; it has no
+      // canonical path to navigate to.
+      if (!link || link.type === 'truncated') return;
+
+      const isShare = getters.isShare();
+      const source = isShare
+        ? state.shareInfo?.hash
+        : link.source || state.req?.source || state.sources.current;
+
+      if (!source) return;
+
+      const path = link.type === 'home'
+        ? (isShare ? '/' : getters.sourceScope(source))
+        : link.path;
+
+      if (!path) return;
+
+      // goToItem avoids redundant transitions and keeps scoped-source paths
+      // intact while resetting the listing state exactly once.
+      url.goToItem(source, path, undefined, false, isShare);
     },
 
     dragEnter(event, link) {
@@ -392,7 +421,12 @@ export default {
     1.275em 50%);
   margin-right: -0.85em;
   border: 1px solid rgba(0, 0, 0, 0.1);
-  cursor: default;
+  cursor: pointer;
+}
+
+#breadcrumbs ul li .breadcrumb-link:hover {
+  background: var(--primaryColor);
+  color: white;
 }
 
 #breadcrumbs ul li .breadcrumb-link .breadcrumb-text {

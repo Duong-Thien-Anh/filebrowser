@@ -25,7 +25,9 @@ test("breadcrumbs display checks", async({ page, checkForErrors }) => {
   await expect(page.locator('a[aria-label="breadcrumb-link-myfolder"]')).toHaveCount(0);
   const currentUrl = page.url();
   await homeBreadcrumb.click();
-  await expect(page).toHaveURL(/\/files\/playwright%20\+\sfiles\/?$/);
+  // Router encoding may represent the plus sign as either `%2B` or `+`.
+  await expect.poll(() => decodeURIComponent(new URL(page.url()).pathname))
+    .toBe("/files/playwright + files/");
   await page.goto(currentUrl);
   await breadCrumb.click();
   await expect(page).toHaveURL(currentUrl);
@@ -37,6 +39,9 @@ test("breadcrumbs display checks", async({ page, checkForErrors }) => {
   breadCrumb = page.locator('span.breadcrumb-link[aria-label="breadcrumb-link-testdata"]')
   await expect(breadCrumb).toHaveText("testdata");
   await expect(page.locator('a[aria-label="breadcrumb-link-testdata"]')).toHaveCount(0);
+  await page.locator('span.breadcrumb-link[aria-label="breadcrumb-link-myfolder"]').click();
+  await expect.poll(() => decodeURIComponent(new URL(page.url()).pathname))
+    .toBe("/files/playwright + files/myfolder");
 
   await page.goto("/files/playwright%20+%20files/files");
   await page.waitForSelector('#breadcrumbs');
